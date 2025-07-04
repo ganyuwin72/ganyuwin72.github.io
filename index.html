@@ -320,14 +320,14 @@
     </div>
   </div>
   <script>
-    // ====== 密码功能 ======
-    const SITE_PASSWORD = 'ganyuwindrso72'; // 你可以自定义密码
+    const SITE_PASSWORD = 'ganyuwindrso72';
     let tasks = [];
     let habits = [];
     let timers = {};
     let dateModalHabitId = null;
-    // 拖动排序通用辅助（全局唯一）
     let dragInfo = { type: null, from: null, to: null, parent: null };
+    let timerRenderInterval = null;
+
     function saveTasks() { localStorage.setItem('tasks', JSON.stringify(tasks)); }
     function saveHabits() { localStorage.setItem('habits', JSON.stringify(habits)); }
     function formatTime(sec) {
@@ -340,7 +340,6 @@
       const d = new Date();
       return d.toISOString().slice(0,10);
     }
-    // 递归统计所有子任务的累计时长
     function getTotalTimeSpent(subtasks) {
       let total = 0;
       for (let s of subtasks) {
@@ -351,7 +350,31 @@
       }
       return total;
     }
-    // 任务相关
+    function showPasswordModal() {
+      document.getElementById('password-modal').style.display = 'flex';
+      document.getElementById('main-app').style.display = 'none';
+      setTimeout(() => {
+        document.getElementById('password-input').focus();
+      }, 100);
+    }
+    function hidePasswordModal() {
+      document.getElementById('password-modal').style.display = 'none';
+      document.getElementById('main-app').style.display = '';
+    }
+    function checkPassword() {
+      const input = document.getElementById('password-input').value;
+      if (input === SITE_PASSWORD) {
+        localStorage.setItem('site_authed', '1');
+        hidePasswordModal();
+        tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+        habits = JSON.parse(localStorage.getItem('habits')||'[]');
+        renderTasks();
+        renderHabits();
+      } else {
+        document.getElementById('password-error').innerText = '密码错误，请重试';
+        document.getElementById('password-error').style.display = 'block';
+      }
+    }
     function showTaskForm() {
       document.getElementById('task-form-modal').style.display = 'flex';
     }
@@ -471,7 +494,6 @@
         card.ondragover = e=>taskDragOver(e, idx);
         card.ondrop = e=>taskDrop(e, idx);
         card.ondragend = ()=>card.classList.remove('dragging');
-        // 统计进度
         let totalLeaf = 0, doneLeaf = 0;
         function countLeafs(subs) {
           let count = 0;
@@ -487,7 +509,6 @@
         }
         totalLeaf = countLeafs(task.subtasks);
         let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
-        // 统计总用时（包括所有子任务）
         let totalTimeSpent = getTotalTimeSpent(task.subtasks);
         totalTimeSpent += task.timeSpent||0;
         card.innerHTML = `
@@ -508,7 +529,6 @@
             li.ondrop = e=>subtaskDrop(e, subIdx, subs);
             li.ondragend = ()=>li.classList.remove('dragging');
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
-            // 统计该子任务的总用时（含所有子孙）
             let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
             li.innerHTML = `
               <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
@@ -536,56 +556,6 @@
       });
       ensureTimerRender();
     }
-    // 习惯相关
-    function showHabitForm() {
-      document.getElementById('habit-form-modal').style.display = 'flex';
-    }
-    function hideHabitForm() {
-      document.getElementById('habit-form-modal').style.display = 'none';
-      document.getElementById('habit-title-input').value = '';
-    }
-    function addHabit() {
-      const title = document.getElementById('habit-title-input').value.trim();
-      if (!title) return alert('请输入习惯名称');
-      habits.push({
-        id: 'habit_'+Date.now(),
-        title,
-        days: {} // {date: true}
-      });
-      saveHabits();
-      habits = JSON.parse(localStorage.getItem('habits')||'[]');
-      hideHabitForm();
-      renderHabits();
-    }
-    function toggleHabitDone(habitId, dateStr) {
-      const habit = habits.find(h=>h.id===habitId);
-      if (!habit.days) habit.days = {};
-      habit.days[dateStr] = !habit.days[dateStr];
-      saveHabits();
-      habits = JSON.parse(localStorage.getItem('habits')||'[]');
-      renderHabits();
-    }
-    // 补录日期弹窗
-    function showDateModal(habitId) {
-      dateModalHabitId = habitId;
-      document.getElementById('date-modal').style.display = 'flex';
-      document.getElementById('date-input').value = '';
-    }
-    function hideDateModal() {
-      document.getElementById('date-modal').style.display = 'none';
-      dateModalHabitId = null;
-    }
-    function confirmDateModal() {
-      const dateStr = document.getElementById('date-input').value;
-      if (!dateStr) return alert('请选择日期');
-      const habit = habits.find(h=>h.id===dateModalHabitId);
-      if (!habit.days) habit.days = {};
-      habit.days[dateStr] = true;
-      saveHabits();
-      habits = JSON.parse(localStorage.getItem('habits')||'[]');
-      hideDateModal();
-      renderHabits();
-    }
     function renderHabits() {
       habits = JSON.parse(localStorage.getItem('habits')||'[]');
       const board = document.getElementById('habit-board');
@@ -599,7 +569,6 @@
         card.ondrop = e=>habitDrop(e, idx);
         card.ondragend = ()=>card.classList.remove('dragging');
         card.innerHTML = `<div class='habit-label'>${habit.title}</div>`;
-        // 控件
         const controls = document.createElement('div');
         controls.className = 'habit-controls';
         controls.innerHTML = `
@@ -607,7 +576,6 @@
           <button class='btn btn-small' onclick="showDateModal('${habit.id}')">补录打卡</button>
         `;
         card.appendChild(controls);
-        // 生成最近一年的日期（按周排列）
         const today = new Date();
         let days = [];
         let start = new Date(today.getFullYear(),0,1);
@@ -616,9 +584,7 @@
           if (d>today) break;
           days.push(d.toISOString().slice(0,10));
         }
-        // 补足到53周
         while (days.length<53*7) days.push('');
-        // 热力图
         const heatmap = document.createElement('div');
         heatmap.className = 'heatmap';
         for (let col=0;col<53;col++) {
@@ -633,7 +599,6 @@
           }
         }
         card.appendChild(heatmap);
-        // 标签
         const labels = document.createElement('div');
         labels.className = 'heatmap-labels';
         labels.innerHTML = '<span>1月</span><span>12月</span>';
@@ -642,7 +607,6 @@
       });
       ensureTimerRender();
     }
-    // 拖动排序通用辅助
     function taskDragStart(e, idx) {
       dragInfo = { type: 'task', from: idx, to: null };
       e.currentTarget.classList.add('dragging');
@@ -663,7 +627,6 @@
       document.querySelectorAll('.task-card').forEach(card=>card.classList.remove('dragging'));
       dragInfo = { type: null, from: null, to: null };
     }
-    // 子任务拖动排序（同层级）
     function subtaskDragStart(e, idx, parentSubs) {
       dragInfo = { type: 'subtask', from: idx, to: null, parent: parentSubs };
       e.currentTarget.classList.add('dragging');
@@ -684,8 +647,6 @@
       document.querySelectorAll('.subtask').forEach(card=>card.classList.remove('dragging'));
       dragInfo = { type: null, from: null, to: null, parent: null };
     }
-    // 修复计时问题：每次 renderTasks 后，若有 running=true 的子任务，定时刷新 renderTasks
-    let timerRenderInterval = null;
     function ensureTimerRender() {
       if (timerRenderInterval) clearInterval(timerRenderInterval);
       function hasRunning(subs) {
@@ -699,7 +660,54 @@
         timerRenderInterval = setInterval(renderTasks, 1000);
       }
     }
-    // 页面初始化和密码校验
+    function showHabitForm() {
+      document.getElementById('habit-form-modal').style.display = 'flex';
+    }
+    function hideHabitForm() {
+      document.getElementById('habit-form-modal').style.display = 'none';
+      document.getElementById('habit-title-input').value = '';
+    }
+    function addHabit() {
+      const title = document.getElementById('habit-title-input').value.trim();
+      if (!title) return alert('请输入习惯名称');
+      habits.push({
+        id: 'habit_'+Date.now(),
+        title,
+        days: {}
+      });
+      saveHabits();
+      habits = JSON.parse(localStorage.getItem('habits')||'[]');
+      hideHabitForm();
+      renderHabits();
+    }
+    function toggleHabitDone(habitId, dateStr) {
+      const habit = habits.find(h=>h.id===habitId);
+      if (!habit.days) habit.days = {};
+      habit.days[dateStr] = !habit.days[dateStr];
+      saveHabits();
+      habits = JSON.parse(localStorage.getItem('habits')||'[]');
+      renderHabits();
+    }
+    function showDateModal(habitId) {
+      dateModalHabitId = habitId;
+      document.getElementById('date-modal').style.display = 'flex';
+      document.getElementById('date-input').value = '';
+    }
+    function hideDateModal() {
+      document.getElementById('date-modal').style.display = 'none';
+      dateModalHabitId = null;
+    }
+    function confirmDateModal() {
+      const dateStr = document.getElementById('date-input').value;
+      if (!dateStr) return alert('请选择日期');
+      const habit = habits.find(h=>h.id===dateModalHabitId);
+      if (!habit.days) habit.days = {};
+      habit.days[dateStr] = true;
+      saveHabits();
+      habits = JSON.parse(localStorage.getItem('habits')||'[]');
+      hideDateModal();
+      renderHabits();
+    }
     window.onload = function() {
       if (localStorage.getItem('site_authed') === '1') {
         document.getElementById('main-app').style.display = '';
@@ -710,17 +718,6 @@
       } else {
         showPasswordModal();
       }
-    }
-    function showPasswordModal() {
-      document.getElementById('password-modal').style.display = 'flex';
-      document.getElementById('main-app').style.display = 'none';
-      setTimeout(() => {
-        document.getElementById('password-input').focus();
-      }, 100);
-    }
-    function hidePasswordModal() {
-      document.getElementById('password-modal').style.display = 'none';
-      document.getElementById('main-app').style.display = '';
     }
   </script>
 </body>
