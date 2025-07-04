@@ -26,7 +26,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 24px;
-      justify-content: center;
+      justify-content: flex-start;
     }
     .task-card {
       background: #fff;
@@ -34,10 +34,17 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
       padding: 24px;
       width: 370px;
+      min-width: 260px;
+      max-width: 100%;
       display: flex;
       flex-direction: column;
       gap: 16px;
       position: relative;
+      cursor: grab;
+      user-select: none;
+    }
+    .task-card.dragging {
+      opacity: 0.5;
     }
     .task-title {
       font-size: 1.2em;
@@ -71,6 +78,11 @@
     .subtask {
       margin-bottom: 8px;
       padding-left: 0;
+      cursor: grab;
+      user-select: none;
+    }
+    .subtask.dragging {
+      opacity: 0.5;
     }
     .subtask-level-1 { margin-left: 0; background: #e0f7fa; border-radius: 6px; }
     .subtask-level-2 { margin-left: 16px; background: #f1f8e9; border-radius: 6px; }
@@ -141,16 +153,29 @@
       font-weight: 700;
       margin-bottom: 4px;
     }
+    .habit-board {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: flex-start;
+    }
     .habit-card {
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
       padding: 20px;
-      width: 600px;
+      width: 320px;
+      min-width: 260px;
+      max-width: 100%;
       margin: 0 12px 24px 12px;
       display: flex;
       flex-direction: column;
       gap: 8px;
+      cursor: grab;
+      user-select: none;
+    }
+    .habit-card.dragging {
+      opacity: 0.5;
     }
     .habit-controls {
       margin-top: 8px;
@@ -324,6 +349,8 @@
       }
       return total;
     }
+    // 拖动排序通用辅助
+    let dragInfo = { type: null, from: null, to: null, parent: null };
     // 任务相关
     function showTaskForm() {
       document.getElementById('task-form-modal').style.display = 'flex';
@@ -436,7 +463,14 @@
       tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
       const board = document.getElementById('task-board');
       board.innerHTML = '';
-      tasks.forEach(task => {
+      tasks.forEach((task, idx) => {
+        const card = document.createElement('div');
+        card.className = 'task-card';
+        card.setAttribute('draggable','true');
+        card.ondragstart = e=>taskDragStart(e, idx);
+        card.ondragover = e=>taskDragOver(e, idx);
+        card.ondrop = e=>taskDrop(e, idx);
+        card.ondragend = ()=>card.classList.remove('dragging');
         // 统计进度
         let totalLeaf = 0, doneLeaf = 0;
         function countLeafs(subs) {
@@ -456,8 +490,6 @@
         // 统计总用时（包括所有子任务）
         let totalTimeSpent = getTotalTimeSpent(task.subtasks);
         totalTimeSpent += task.timeSpent||0;
-        const card = document.createElement('div');
-        card.className = 'task-card';
         card.innerHTML = `
           <div class="task-title">${task.title}</div>
           <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
@@ -467,9 +499,14 @@
           <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
         `;
         function renderSubtasks(ul, subs, level, parentTaskId) {
-          subs.forEach(sub => {
+          subs.forEach((sub, subIdx) => {
             const li = document.createElement('li');
             li.className = `subtask subtask-level-${level}`;
+            li.setAttribute('draggable','true');
+            li.ondragstart = e=>subtaskDragStart(e, subIdx, subs);
+            li.ondragover = e=>subtaskDragOver(e, subIdx);
+            li.ondrop = e=>subtaskDrop(e, subIdx, subs);
+            li.ondragend = ()=>li.classList.remove('dragging');
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
             // 统计该子任务的总用时（含所有子孙）
             let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
@@ -552,9 +589,14 @@
       habits = JSON.parse(localStorage.getItem('habits')||'[]');
       const board = document.getElementById('habit-board');
       board.innerHTML = '';
-      habits.forEach(habit => {
+      habits.forEach((habit, idx) => {
         const card = document.createElement('div');
         card.className = 'habit-card';
+        card.setAttribute('draggable','true');
+        card.ondragstart = e=>habitDragStart(e, idx);
+        card.ondragover = e=>habitDragOver(e, idx);
+        card.ondrop = e=>habitDrop(e, idx);
+        card.ondragend = ()=>card.classList.remove('dragging');
         card.innerHTML = `<div class='habit-label'>${habit.title}</div>`;
         // 控件
         const controls = document.createElement('div');
@@ -597,6 +639,86 @@
         card.appendChild(labels);
         board.appendChild(card);
       });
+    }
+    // 拖动排序通用辅助
+    let dragInfo = { type: null, from: null, to: null, parent: null };
+    // 习惯卡片拖动排序
+    function habitDragStart(e, idx) {
+      dragInfo = { type: 'habit', from: idx, to: null };
+      e.currentTarget.classList.add('dragging');
+    }
+    function habitDragOver(e, idx) {
+      e.preventDefault();
+      dragInfo.to = idx;
+    }
+    function habitDrop(e, idx) {
+      e.preventDefault();
+      if (dragInfo.type==='habit' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to) {
+        const moved = habits.splice(dragInfo.from,1)[0];
+        habits.splice(dragInfo.to,0,moved);
+        saveHabits();
+        habits = JSON.parse(localStorage.getItem('habits')||'[]');
+        renderHabits();
+      }
+      document.querySelectorAll('.habit-card').forEach(card=>card.classList.remove('dragging'));
+      dragInfo = { type: null, from: null, to: null };
+    }
+    // 任务卡片拖动排序
+    function taskDragStart(e, idx) {
+      dragInfo = { type: 'task', from: idx, to: null };
+      e.currentTarget.classList.add('dragging');
+    }
+    function taskDragOver(e, idx) {
+      e.preventDefault();
+      dragInfo.to = idx;
+    }
+    function taskDrop(e, idx) {
+      e.preventDefault();
+      if (dragInfo.type==='task' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to) {
+        const moved = tasks.splice(dragInfo.from,1)[0];
+        tasks.splice(dragInfo.to,0,moved);
+        saveTasks();
+        tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+        renderTasks();
+      }
+      document.querySelectorAll('.task-card').forEach(card=>card.classList.remove('dragging'));
+      dragInfo = { type: null, from: null, to: null };
+    }
+    // 子任务拖动排序（同层级）
+    function subtaskDragStart(e, idx, parentSubs) {
+      dragInfo = { type: 'subtask', from: idx, to: null, parent: parentSubs };
+      e.currentTarget.classList.add('dragging');
+    }
+    function subtaskDragOver(e, idx) {
+      e.preventDefault();
+      dragInfo.to = idx;
+    }
+    function subtaskDrop(e, idx, parentSubs) {
+      e.preventDefault();
+      if (dragInfo.type==='subtask' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to && dragInfo.parent===parentSubs) {
+        const moved = parentSubs.splice(dragInfo.from,1)[0];
+        parentSubs.splice(dragInfo.to,0,moved);
+        saveTasks();
+        tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+        renderTasks();
+      }
+      document.querySelectorAll('.subtask').forEach(card=>card.classList.remove('dragging'));
+      dragInfo = { type: null, from: null, to: null, parent: null };
+    }
+    // 修复计时问题：每次 renderTasks 后，若有 running=true 的子任务，定时刷新 renderTasks
+    let timerRenderInterval = null;
+    function ensureTimerRender() {
+      if (timerRenderInterval) clearInterval(timerRenderInterval);
+      function hasRunning(subs) {
+        for (let s of subs) {
+          if (s.running) return true;
+          if (s.subtasks && s.subtasks.length>0 && hasRunning(s.subtasks)) return true;
+        }
+        return false;
+      }
+      if (tasks.some(t=>hasRunning(t.subtasks))) {
+        timerRenderInterval = setInterval(renderTasks, 1000);
+      }
     }
     // 页面初始化和密码校验
     window.onload = function() {
