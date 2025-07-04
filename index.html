@@ -72,9 +72,12 @@
       margin-bottom: 8px;
       padding-left: 0;
     }
-    .subtask-level-1 { margin-left: 0; }
-    .subtask-level-2 { margin-left: 16px; }
-    .subtask-level-3 { margin-left: 32px; }
+    .subtask-level-1 { margin-left: 0; background: #e0f7fa; border-radius: 6px; }
+    .subtask-level-2 { margin-left: 16px; background: #f1f8e9; border-radius: 6px; }
+    .subtask-level-3 { margin-left: 32px; background: #f9fbe7; border-radius: 6px; }
+    .subtask-level-1 { color: #00796b; }
+    .subtask-level-2 { color: #689f38; }
+    .subtask-level-3 { color: #bdb76b; }
     .subtask-controls {
       display: flex;
       gap: 8px;
@@ -107,16 +110,21 @@
     }
     .heatmap {
       display: grid;
-      grid-template-columns: repeat(7, 18px);
-      gap: 2px;
+      grid-template-columns: repeat(53, 10px);
+      gap: 1px;
       margin-top: 8px;
+      width: 560px;
+      max-width: 100%;
+      overflow-x: auto;
     }
     .heatmap-day {
-      width: 18px;
-      height: 18px;
-      border-radius: 3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
       background: #e0e0e0;
       transition: background 0.2s;
+      box-sizing: border-box;
+      border: 1px solid #f5f6fa;
     }
     .heatmap-day.done {
       background: #3aafa9;
@@ -138,7 +146,7 @@
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
       padding: 20px;
-      width: 370px;
+      width: 600px;
       margin: 0 12px 24px 12px;
       display: flex;
       flex-direction: column;
@@ -211,6 +219,32 @@
       margin-bottom: 8px;
       font-size: 0.98em;
     }
+    .date-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.25);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    .date-modal-content {
+      background: #fff;
+      padding: 24px 20px;
+      border-radius: 12px;
+      min-width: 220px;
+      max-width: 90vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .date-modal-content input[type="date"] {
+      font-size: 1em;
+      padding: 4px 8px;
+      margin-bottom: 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
@@ -248,12 +282,21 @@
           <button class="btn btn-small" onclick="hideHabitForm()">取消</button>
         </div>
       </div>
+      <!-- 补录日期弹窗 -->
+      <div id="date-modal" class="date-modal">
+        <div class="date-modal-content">
+          <div style="font-size:1.05em;margin-bottom:8px;">选择补录日期</div>
+          <input id="date-input" type="date">
+          <button class="btn" onclick="confirmDateModal()">补录</button>
+          <button class="btn btn-small" onclick="hideDateModal()">取消</button>
+        </div>
+      </div>
       <button class="btn add-task-btn" style="margin-top:16px;" onclick="showHabitForm()">+ 新建习惯</button>
     </div>
   </div>
   <script>
     // ====== 密码功能 ======
-    const SITE_PASSWORD = '123456'; // 你可以自定义密码
+    const SITE_PASSWORD = 'ganyuwindrso72'; // 你可以自定义密码
     function showPasswordModal() {
       document.getElementById('password-modal').style.display = 'flex';
       document.getElementById('main-app').style.display = 'none';
@@ -264,6 +307,8 @@
     function hidePasswordModal() {
       document.getElementById('password-modal').style.display = 'none';
       document.getElementById('main-app').style.display = '';
+      renderTasks(); // 修复首次登录后立即渲染
+      renderHabits();
     }
     function checkPassword() {
       const input = document.getElementById('password-input').value;
@@ -275,16 +320,18 @@
         document.getElementById('password-error').style.display = 'block';
       }
     }
-    // 页面加载时检查
     if (localStorage.getItem('site_authed') === '1') {
       document.getElementById('main-app').style.display = '';
+      renderTasks();
+      renderHabits();
     } else {
       showPasswordModal();
     }
-    // ====== 以下为原有任务/习惯管理代码 ======
+    // ====== 任务/习惯管理代码 ======
     let tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
     let habits = JSON.parse(localStorage.getItem('habits')||'[]');
     let timers = {};
+    let dateModalHabitId = null;
     function saveTasks() { localStorage.setItem('tasks', JSON.stringify(tasks)); }
     function saveHabits() { localStorage.setItem('habits', JSON.stringify(habits)); }
     function formatTime(sec) {
@@ -355,6 +402,17 @@
         }
       }
     }
+    // 递归统计所有子任务的累计时长
+    function getTotalTimeSpent(subtasks) {
+      let total = 0;
+      for (let s of subtasks) {
+        if (s.subtasks && s.subtasks.length>0) {
+          total += getTotalTimeSpent(s.subtasks);
+        }
+        total += s.timeSpent||0;
+      }
+      return total;
+    }
     function startTimer(taskId, subId) {
       let task = tasks.find(t=>t.id===taskId);
       let sub = findSubtaskById(task.subtasks, subId);
@@ -400,7 +458,7 @@
       board.innerHTML = '';
       tasks.forEach(task => {
         // 统计进度
-        let totalLeaf = 0, doneLeaf = 0, totalTimeSpent = 0;
+        let totalLeaf = 0, doneLeaf = 0;
         function countLeafs(subs) {
           let count = 0;
           for (let s of subs) {
@@ -409,13 +467,14 @@
             } else {
               count++;
               if (s.done) doneLeaf++;
-              totalTimeSpent += s.timeSpent||0;
             }
           }
           return count;
         }
         totalLeaf = countLeafs(task.subtasks);
         let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
+        // 统计总用时（包括所有子任务）
+        let totalTimeSpent = getTotalTimeSpent(task.subtasks);
         totalTimeSpent += task.timeSpent||0;
         const card = document.createElement('div');
         card.className = 'task-card';
@@ -432,15 +491,17 @@
             const li = document.createElement('li');
             li.className = `subtask subtask-level-${level}`;
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
+            // 统计该子任务的总用时（含所有子孙）
+            let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
             li.innerHTML = `
               <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
-              ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(sub.timeSpent||0)}</span>`:''}
+              ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(subTotalTime)}</span>`:''}
               <div class="subtask-controls">
-                ${level<3?`<button class='btn btn-small' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:''}
+                ${level<3?`<button class='btn btn-small' onclick=\"addSubtask('${task.id}','${sub.id}',${level+1})\">+ 子任务</button>`:''}
                 ${leaf?`
-                  <button class='btn btn-small' onclick="startTimer('${task.id}','${sub.id}')" ${sub.running?'disabled':''}>开始</button>
-                  <button class='btn btn-small' onclick="stopTimer('${task.id}','${sub.id}')" ${!sub.running?'disabled':''}>结束</button>
-                  <button class='btn btn-small' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
+                  <button class='btn btn-small' onclick=\"startTimer('${task.id}','${sub.id}')\" ${sub.running?'disabled':''}>开始</button>
+                  <button class='btn btn-small' onclick=\"stopTimer('${task.id}','${sub.id}')\" ${!sub.running?'disabled':''}>结束</button>
+                  <button class='btn btn-small' onclick=\"markDone('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>完成</button>
                 `:''}
               </div>
             `;
@@ -457,6 +518,7 @@
         board.appendChild(card);
       });
     }
+    // 习惯相关
     function showHabitForm() {
       document.getElementById('habit-form-modal').style.display = 'flex';
     }
@@ -483,6 +545,26 @@
       saveHabits();
       renderHabits();
     }
+    // 补录日期弹窗
+    function showDateModal(habitId) {
+      dateModalHabitId = habitId;
+      document.getElementById('date-modal').style.display = 'flex';
+      document.getElementById('date-input').value = '';
+    }
+    function hideDateModal() {
+      document.getElementById('date-modal').style.display = 'none';
+      dateModalHabitId = null;
+    }
+    function confirmDateModal() {
+      const dateStr = document.getElementById('date-input').value;
+      if (!dateStr) return alert('请选择日期');
+      const habit = habits.find(h=>h.id===dateModalHabitId);
+      if (!habit.days) habit.days = {};
+      habit.days[dateStr] = true;
+      saveHabits();
+      hideDateModal();
+      renderHabits();
+    }
     function renderHabits() {
       habits = JSON.parse(localStorage.getItem('habits')||'[]');
       const board = document.getElementById('habit-board');
@@ -491,36 +573,51 @@
         const card = document.createElement('div');
         card.className = 'habit-card';
         card.innerHTML = `<div class='habit-label'>${habit.title}</div>`;
-        // 生成最近6周的日期
+        // 控件
+        const controls = document.createElement('div');
+        controls.className = 'habit-controls';
+        controls.innerHTML = `
+          <button class='btn btn-small' onclick="toggleHabitDone('${habit.id}','${getTodayStr()}')">今日打卡</button>
+          <button class='btn btn-small' onclick="showDateModal('${habit.id}')">补录打卡</button>
+        `;
+        card.appendChild(controls);
+        // 生成最近一年的日期（按周排列）
         const today = new Date();
         let days = [];
-        for (let i=41;i>=0;i--) {
-          const d = new Date(today.getTime()-i*24*3600*1000);
+        let start = new Date(today.getFullYear(),0,1);
+        for (let i=0;i<366;i++) {
+          let d = new Date(start.getTime()+i*24*3600*1000);
+          if (d>today) break;
           days.push(d.toISOString().slice(0,10));
         }
+        // 补足到53周
+        while (days.length<53*7) days.push('');
         // 热力图
         const heatmap = document.createElement('div');
         heatmap.className = 'heatmap';
-        days.forEach(dateStr => {
-          const dayDiv = document.createElement('div');
-          dayDiv.className = 'heatmap-day'+(habit.days[dateStr]?' done':'');
-          dayDiv.title = dateStr;
-          dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
-          heatmap.appendChild(dayDiv);
-        });
+        for (let col=0;col<53;col++) {
+          for (let row=0;row<7;row++) {
+            let idx = row+col*7;
+            let dateStr = days[idx];
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'heatmap-day'+(dateStr&&habit.days[dateStr]?' done':'');
+            dayDiv.title = dateStr||'';
+            if (dateStr) dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
+            heatmap.appendChild(dayDiv);
+          }
+        }
         card.appendChild(heatmap);
         // 标签
         const labels = document.createElement('div');
         labels.className = 'heatmap-labels';
-        labels.innerHTML = '<span>周一</span><span>周日</span>';
+        labels.innerHTML = '<span>1月</span><span>12月</span>';
         card.appendChild(labels);
         board.appendChild(card);
       });
     }
-    // 初始化
-    if (localStorage.getItem('site_authed') === '1') {
-      renderTasks();
-      renderHabits();
+    function getTodayStr() {
+      const d = new Date();
+      return d.toISOString().slice(0,10);
     }
   </script>
 </body>
