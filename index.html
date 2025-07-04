@@ -33,7 +33,7 @@
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
       padding: 24px;
-      width: 350px;
+      width: 370px;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -138,7 +138,7 @@
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
       padding: 20px;
-      width: 350px;
+      width: 370px;
       margin: 0 12px 24px 12px;
       display: flex;
       flex-direction: column;
@@ -155,6 +155,25 @@
     .habit-controls .btn:active {
       background: #2b7a78;
     }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.25);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 32px 24px;
+      border-radius: 12px;
+      min-width: 320px;
+      max-width: 90vw;
+    }
+    .modal-content input {
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -165,20 +184,20 @@
     <h2 style="margin-top:40px;">每日习惯</h2>
     <div id="habit-board" style="display:flex;flex-wrap:wrap;gap:24px;"></div>
     <!-- 任务表单弹窗 -->
-    <div id="task-form-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:1000;align-items:center;justify-content:center;">
-      <div style="background:#fff;padding:32px 24px;border-radius:12px;min-width:320px;max-width:90vw;">
+    <div id="task-form-modal" class="modal">
+      <div class="modal-content">
         <h3>新建任务</h3>
-        <label>任务名称：<input id="task-title-input" style="width:90%;margin-bottom:8px;"></label><br>
+        <label>任务名称：<input id="task-title-input" style="width:90%"></label><br>
         <label>预计完成时间（小时）：<input id="task-estimate-input" type="number" min="0" style="width:60px;"></label><br>
         <button class="btn" onclick="addTask()">添加</button>
         <button class="btn btn-small" onclick="hideTaskForm()">取消</button>
       </div>
     </div>
     <!-- 习惯表单弹窗 -->
-    <div id="habit-form-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:1000;align-items:center;justify-content:center;">
-      <div style="background:#fff;padding:32px 24px;border-radius:12px;min-width:320px;max-width:90vw;">
+    <div id="habit-form-modal" class="modal">
+      <div class="modal-content">
         <h3>新建习惯</h3>
-        <label>习惯名称：<input id="habit-title-input" style="width:90%;margin-bottom:8px;"></label><br>
+        <label>习惯名称：<input id="habit-title-input" style="width:90%"></label><br>
         <button class="btn" onclick="addHabit()">添加</button>
         <button class="btn btn-small" onclick="hideHabitForm()">取消</button>
       </div>
@@ -187,45 +206,17 @@
   </div>
   <script>
     // 数据结构
-    function safeParseTasks() {
-      try {
-        const t = JSON.parse(localStorage.getItem('tasks')||'[]');
-        if (!Array.isArray(t)) throw new Error('tasks not array');
-        return t;
-      } catch(e) {
-        localStorage.setItem('tasks','[]');
-        return [];
-      }
-    }
-    function safeParseHabits() {
-      try {
-        const h = JSON.parse(localStorage.getItem('habits')||'[]');
-        if (!Array.isArray(h)) throw new Error('habits not array');
-        return h;
-      } catch(e) {
-        localStorage.setItem('habits','[]');
-        return [];
-      }
-    }
-    let tasks = safeParseTasks();
-    let habits = safeParseHabits();
-    let timerIntervals = {}; // {subtaskId: intervalId}
+    let tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+    let habits = JSON.parse(localStorage.getItem('habits')||'[]');
+    let timers = {};
     // 工具函数
-    function saveTasks() {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
-    function saveHabits() {
-      localStorage.setItem('habits', JSON.stringify(habits));
-    }
-    function formatTime(seconds) {
-      const h = Math.floor(seconds/3600);
-      const m = Math.floor((seconds%3600)/60);
-      const s = seconds%60;
+    function saveTasks() { localStorage.setItem('tasks', JSON.stringify(tasks)); }
+    function saveHabits() { localStorage.setItem('habits', JSON.stringify(habits)); }
+    function formatTime(sec) {
+      const h = Math.floor(sec/3600);
+      const m = Math.floor((sec%3600)/60);
+      const s = sec%60;
       return `${h>0?h+':':''}${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-    }
-    function getTodayStr() {
-      const d = new Date();
-      return d.toISOString().slice(0,10);
     }
     // 任务相关
     function showTaskForm() {
@@ -243,31 +234,30 @@
       tasks.push({
         id: 'task_'+Date.now(),
         title,
-        estimate: estimate || 0,
+        estimate: estimate||0,
         subtasks: [],
         timeSpent: 0
       });
       saveTasks();
-      tasks = safeParseTasks(); // 重新读取，确保一致
       hideTaskForm();
       renderTasks();
     }
-    function addSubtask(taskId, parentSubtaskId, level) {
+    function addSubtask(taskId, parentId, level) {
       const name = prompt('子任务名称：');
       if (!name) return;
-      const task = tasks.find(t=>t.id===taskId);
+      let task = tasks.find(t=>t.id===taskId);
       let parent = task;
-      if (parentSubtaskId) {
-        function findSubtask(subtasks, id) {
-          for (let s of subtasks) {
+      if (parentId) {
+        function findSub(subs, id) {
+          for (let s of subs) {
             if (s.id===id) return s;
             if (s.subtasks) {
-              const found = findSubtask(s.subtasks, id);
+              const found = findSub(s.subtasks, id);
               if (found) return found;
             }
           }
         }
-        parent = findSubtask(task.subtasks, parentSubtaskId);
+        parent = findSub(task.subtasks, parentId);
       }
       if (!parent.subtasks) parent.subtasks = [];
       if (level>=3) return alert('最多三级分解');
@@ -277,84 +267,10 @@
         subtasks: [],
         timeSpent: 0,
         running: false,
-        timeLog: []
+        done: false
       });
       saveTasks();
-      tasks = safeParseTasks();
       renderTasks();
-    }
-    function renderTasks() {
-      try {
-        tasks = safeParseTasks();
-        const board = document.getElementById('task-board');
-        board.innerHTML = '';
-        tasks.forEach(task => {
-          // 统计进度
-          let totalLeaf = 0, doneLeaf = 0, totalTimeSpent = 0;
-          function countLeafs(subtasks) {
-            let count = 0;
-            for (let s of subtasks) {
-              if (s.subtasks && s.subtasks.length>0) {
-                count += countLeafs(s.subtasks);
-              } else {
-                count++;
-                if (s.done) doneLeaf++;
-                totalTimeSpent += s.timeSpent||0;
-              }
-            }
-            return count;
-          }
-          totalLeaf = countLeafs(task.subtasks);
-          // 进度百分比
-          let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
-          // 统计总用时
-          totalTimeSpent += task.timeSpent||0;
-          // 卡片
-          const card = document.createElement('div');
-          card.className = 'task-card';
-          card.innerHTML = `
-            <div class="task-title">${task.title}</div>
-            <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
-            <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
-            <div style="font-size:0.95em;">完成度: ${percent}%</div>
-            <ul class="subtasks"></ul>
-            <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
-          `;
-          // 渲染子任务
-          function renderSubtasks(ul, subtasks, level, parentTaskId) {
-            subtasks.forEach(sub => {
-              const li = document.createElement('li');
-              li.className = `subtask subtask-level-${level}`;
-              let leaf = (!sub.subtasks || sub.subtasks.length===0);
-              li.innerHTML = `
-                <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
-                ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(sub.timeSpent||0)}</span>`:''}
-                <div class="subtask-controls">
-                  ${level<3?`<button class='btn btn-small' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:''}
-                  ${leaf?`
-                    <button class='btn btn-small' onclick="startTimer('${task.id}','${sub.id}')" ${sub.running?'disabled':''}>开始</button>
-                    <button class='btn btn-small' onclick="stopTimer('${task.id}','${sub.id}')" ${!sub.running?'disabled':''}>结束</button>
-                    <button class='btn btn-small' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
-                  `:''}
-                </div>
-              `;
-              ul.appendChild(li);
-              if (sub.subtasks && sub.subtasks.length>0) {
-                const subUl = document.createElement('ul');
-                subUl.className = 'subtasks';
-                renderSubtasks(subUl, sub.subtasks, level+1, parentTaskId);
-                ul.appendChild(subUl);
-              }
-            });
-          }
-          renderSubtasks(card.querySelector('.subtasks'), task.subtasks, 1, task.id);
-          board.appendChild(card);
-        });
-      } catch(e) {
-        alert('任务数据异常，已重置。');
-        localStorage.setItem('tasks','[]');
-        location.reload();
-      }
     }
     function findSubtaskById(subtasks, id) {
       for (let s of subtasks) {
@@ -365,40 +281,107 @@
         }
       }
     }
-    function startTimer(taskId, subtaskId) {
-      const task = tasks.find(t=>t.id===taskId);
-      const sub = findSubtaskById(task.subtasks, subtaskId);
+    function startTimer(taskId, subId) {
+      let task = tasks.find(t=>t.id===taskId);
+      let sub = findSubtaskById(task.subtasks, subId);
       if (sub.running) return;
       sub.running = true;
-      sub._startTime = Date.now();
-      timerIntervals[subtaskId] = setInterval(()=>{
-        sub.timeSpent = (sub.timeSpent||0) + 1;
-        renderTasks();
-      }, 1000);
-      saveTasks();
-      renderTasks();
-    }
-    function stopTimer(taskId, subtaskId) {
-      const task = tasks.find(t=>t.id===taskId);
-      const sub = findSubtaskById(task.subtasks, subtaskId);
-      if (!sub.running) return;
-      sub.running = false;
-      clearInterval(timerIntervals[subtaskId]);
-      timerIntervals[subtaskId] = null;
-      saveTasks();
-      renderTasks();
-    }
-    function markDone(taskId, subtaskId) {
-      const task = tasks.find(t=>t.id===taskId);
-      const sub = findSubtaskById(task.subtasks, subtaskId);
-      sub.done = true;
-      sub.running = false;
-      if (timerIntervals[subtaskId]) {
-        clearInterval(timerIntervals[subtaskId]);
-        timerIntervals[subtaskId] = null;
+      if (!timers[subId]) {
+        timers[subId] = setInterval(()=>{
+          sub.timeSpent = (sub.timeSpent||0)+1;
+          saveTasks();
+          renderTasks();
+        }, 1000);
       }
       saveTasks();
       renderTasks();
+    }
+    function stopTimer(taskId, subId) {
+      let task = tasks.find(t=>t.id===taskId);
+      let sub = findSubtaskById(task.subtasks, subId);
+      if (!sub.running) return;
+      sub.running = false;
+      if (timers[subId]) {
+        clearInterval(timers[subId]);
+        timers[subId] = null;
+      }
+      saveTasks();
+      renderTasks();
+    }
+    function markDone(taskId, subId) {
+      let task = tasks.find(t=>t.id===taskId);
+      let sub = findSubtaskById(task.subtasks, subId);
+      sub.done = true;
+      sub.running = false;
+      if (timers[subId]) {
+        clearInterval(timers[subId]);
+        timers[subId] = null;
+      }
+      saveTasks();
+      renderTasks();
+    }
+    function renderTasks() {
+      tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+      const board = document.getElementById('task-board');
+      board.innerHTML = '';
+      tasks.forEach(task => {
+        // 统计进度
+        let totalLeaf = 0, doneLeaf = 0, totalTimeSpent = 0;
+        function countLeafs(subs) {
+          let count = 0;
+          for (let s of subs) {
+            if (s.subtasks && s.subtasks.length>0) {
+              count += countLeafs(s.subtasks);
+            } else {
+              count++;
+              if (s.done) doneLeaf++;
+              totalTimeSpent += s.timeSpent||0;
+            }
+          }
+          return count;
+        }
+        totalLeaf = countLeafs(task.subtasks);
+        let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
+        totalTimeSpent += task.timeSpent||0;
+        const card = document.createElement('div');
+        card.className = 'task-card';
+        card.innerHTML = `
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
+          <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
+          <div style="font-size:0.95em;">完成度: ${percent}%</div>
+          <ul class="subtasks"></ul>
+          <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
+        `;
+        function renderSubtasks(ul, subs, level, parentTaskId) {
+          subs.forEach(sub => {
+            const li = document.createElement('li');
+            li.className = `subtask subtask-level-${level}`;
+            let leaf = (!sub.subtasks || sub.subtasks.length===0);
+            li.innerHTML = `
+              <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
+              ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(sub.timeSpent||0)}</span>`:''}
+              <div class="subtask-controls">
+                ${level<3?`<button class='btn btn-small' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:''}
+                ${leaf?`
+                  <button class='btn btn-small' onclick="startTimer('${task.id}','${sub.id}')" ${sub.running?'disabled':''}>开始</button>
+                  <button class='btn btn-small' onclick="stopTimer('${task.id}','${sub.id}')" ${!sub.running?'disabled':''}>结束</button>
+                  <button class='btn btn-small' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
+                `:''}
+              </div>
+            `;
+            ul.appendChild(li);
+            if (sub.subtasks && sub.subtasks.length>0) {
+              const subUl = document.createElement('ul');
+              subUl.className = 'subtasks';
+              renderSubtasks(subUl, sub.subtasks, level+1, parentTaskId);
+              ul.appendChild(subUl);
+            }
+          });
+        }
+        renderSubtasks(card.querySelector('.subtasks'), task.subtasks, 1, task.id);
+        board.appendChild(card);
+      });
     }
     // 习惯相关
     function showHabitForm() {
@@ -428,6 +411,7 @@
       renderHabits();
     }
     function renderHabits() {
+      habits = JSON.parse(localStorage.getItem('habits')||'[]');
       const board = document.getElementById('habit-board');
       board.innerHTML = '';
       habits.forEach(habit => {
