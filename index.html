@@ -284,6 +284,7 @@
   <div id="main-app" style="display:none;">
     <div class="container">
       <h1>任务管理与计时统计</h1>
+      <div id="total-time" style="font-size:1.1em;color:#1976d2;margin-bottom:16px;font-weight:700;"></div>
       <button class="btn add-task-btn" onclick="showTaskForm()">+ 新建任务</button>
       <div id="task-board" class="task-board"></div>
       <h2 style="margin-top:40px;">每日习惯</h2>
@@ -492,8 +493,24 @@
       tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
       renderTasks();
     }
+    function getAllTasksTotalTime() {
+      let total = 0;
+      function sum(subs) {
+        for (let s of subs) {
+          if (s.subtasks && s.subtasks.length>0) sum(s.subtasks);
+          total += s.timeSpent||0;
+        }
+      }
+      for (let t of tasks) {
+        total += t.timeSpent||0;
+        sum(t.subtasks||[]);
+      }
+      return total;
+    }
     function renderTasks() {
       tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+      const totalTime = getAllTasksTotalTime();
+      document.getElementById('total-time').innerText = '所有任务累计用时：' + formatTime(totalTime);
       const board = document.getElementById('task-board');
       board.innerHTML = '';
       tasks.forEach((task, idx) => {
