@@ -1,7 +1,73 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Hello</title></head>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>学习计划</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
+  li.done { text-decoration: line-through; color: gray; }
+</style>
+</head>
 <body>
-<h1>我的学习计划</h1>
+<h1>我的任务管理</h1>
+
+<input id="taskInput" type="text" placeholder="输入新任务">
+<button onclick="addTask()">添加任务</button>
+
+<ul id="taskList"></ul>
+
+<script>
+const taskList = document.getElementById('taskList');
+const taskInput = document.getElementById('taskInput');
+
+// 从 localStorage 加载任务
+let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+renderTasks();
+
+function addTask() {
+    const text = taskInput.value.trim();
+    if (!text) return;
+    tasks.push({text, done: false});
+    taskInput.value = '';
+    saveTasks();
+    renderTasks();
+}
+
+function toggleTask(i) {
+    tasks[i].done = !tasks[i].done;
+    saveTasks();
+    renderTasks();
+}
+
+function deleteTask(i) {
+    tasks.splice(i, 1);
+    saveTasks();
+    renderTasks();
+}
+
+function renderTasks() {
+    taskList.innerHTML = '';
+    tasks.forEach((task, i) => {
+        const li = document.createElement('li');
+        li.textContent = task.text;
+        li.className = task.done ? 'done' : '';
+        li.onclick = () => toggleTask(i);
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '删除';
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteTask(i);
+        };
+
+        li.appendChild(delBtn);
+        taskList.appendChild(li);
+    });
+}
+
+function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+</script>
 </body>
 </html>
