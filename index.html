@@ -69,5 +69,29 @@ function saveTasks() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
 }
 </script>
+<h2>学习时长统计</h2>
+<p>已学习：<span id="time">0</span> 分钟</p>
+<button onclick="start()">开始</button>
+<button onclick="stop()">停止</button>
+
+<script>
+let timer = null;
+let minutes = parseInt(localStorage.getItem('minutes') || '0');
+document.getElementById('time').textContent = minutes;
+
+function start() {
+    if (timer) return;
+    timer = setInterval(() => {
+        minutes++;
+        document.getElementById('time').textContent = minutes;
+        localStorage.setItem('minutes', minutes);
+    }, 60000); // 1分钟
+}
+
+function stop() {
+    clearInterval(timer);
+    timer = null;
+}
+</script>
 </body>
 </html>
