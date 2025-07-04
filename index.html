@@ -1,233 +1,439 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>学习计划管理</title>
-  <!-- Bootstrap CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>任务管理与计时统计</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    .task-done {
-      text-decoration: line-through;
-      color: gray;
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 32px;
+      color: #222;
+    }
+    .task-board {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: center;
+    }
+    .task-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 24px;
+      width: 350px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+    .task-title {
+      font-size: 1.2em;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .task-meta {
+      font-size: 0.95em;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .progress-bar {
+      background: #eee;
+      border-radius: 8px;
+      height: 14px;
+      width: 100%;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-inner {
+      background: linear-gradient(90deg, #4ecca3, #3aafa9);
+      height: 100%;
+      width: 0%;
+      transition: width 0.4s;
+    }
+    .subtasks {
+      margin-left: 0;
+      padding-left: 0;
+      list-style: none;
+    }
+    .subtask {
+      margin-bottom: 8px;
+      padding-left: 0;
+    }
+    .subtask-level-1 { margin-left: 0; }
+    .subtask-level-2 { margin-left: 16px; }
+    .subtask-level-3 { margin-left: 32px; }
+    .subtask-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .btn {
+      background: #3aafa9;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 12px;
+      cursor: pointer;
+      font-size: 0.95em;
+      transition: background 0.2s;
+    }
+    .btn:active {
+      background: #2b7a78;
+    }
+    .btn-small {
+      font-size: 0.85em;
+      padding: 2px 8px;
+    }
+    .add-task-btn {
+      display: block;
+      margin: 0 auto 32px auto;
+      background: #4ecca3;
+      font-weight: 700;
+      font-size: 1.1em;
+    }
+    .heatmap {
+      display: grid;
+      grid-template-columns: repeat(7, 18px);
+      gap: 2px;
+      margin-top: 8px;
+    }
+    .heatmap-day {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      background: #e0e0e0;
+      transition: background 0.2s;
+    }
+    .heatmap-day.done {
+      background: #3aafa9;
+    }
+    .heatmap-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8em;
+      color: #888;
+      margin-top: 2px;
+    }
+    .habit-label {
+      font-size: 0.95em;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .habit-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 20px;
+      width: 350px;
+      margin: 0 12px 24px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .habit-controls {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .habit-controls .btn {
+      background: #4ecca3;
+    }
+    .habit-controls .btn:active {
+      background: #2b7a78;
     }
   </style>
 </head>
 <body>
-  <div class="container py-4">
-    <h1 class="text-center mb-4 text-primary">学习计划管理</h1>
-
-    <!-- 任务管理区 -->
-    <div class="card mb-4">
-      <div class="card-header">任务列表</div>
-      <div class="card-body">
-        <div class="input-group mb-3">
-          <input
-            id="taskInput"
-            type="text"
-            class="form-control"
-            placeholder="输入新任务"
-          />
-          <button class="btn btn-primary" onclick="addTask()">添加任务</button>
-        </div>
-        <ul id="taskList" class="list-group"></ul>
+  <div class="container">
+    <h1>任务管理与计时统计</h1>
+    <button class="btn add-task-btn" onclick="showTaskForm()">+ 新建任务</button>
+    <div id="task-board" class="task-board"></div>
+    <h2 style="margin-top:40px;">每日习惯</h2>
+    <div id="habit-board" style="display:flex;flex-wrap:wrap;gap:24px;"></div>
+    <!-- 任务表单弹窗 -->
+    <div id="task-form-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:#fff;padding:32px 24px;border-radius:12px;min-width:320px;max-width:90vw;">
+        <h3>新建任务</h3>
+        <label>任务名称：<input id="task-title-input" style="width:90%;margin-bottom:8px;"></label><br>
+        <label>预计完成时间（小时）：<input id="task-estimate-input" type="number" min="0" style="width:60px;"></label><br>
+        <button class="btn" onclick="addTask()">添加</button>
+        <button class="btn btn-small" onclick="hideTaskForm()">取消</button>
       </div>
     </div>
-
-    <!-- 学习时长区 -->
-    <div class="card">
-      <div class="card-header">学习时长统计</div>
-      <div class="card-body text-center">
-        <p class="fs-4">
-          已学习：
-          <span id="time">0</span> 分钟
-        </p>
-        <button class="btn btn-success me-2" onclick="startTimer()">
-          开始计时
-        </button>
-        <button class="btn btn-danger" onclick="stopTimer()">
-          停止计时
-        </button>
+    <!-- 习惯表单弹窗 -->
+    <div id="habit-form-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:#fff;padding:32px 24px;border-radius:12px;min-width:320px;max-width:90vw;">
+        <h3>新建习惯</h3>
+        <label>习惯名称：<input id="habit-title-input" style="width:90%;margin-bottom:8px;"></label><br>
+        <button class="btn" onclick="addHabit()">添加</button>
+        <button class="btn btn-small" onclick="hideHabitForm()">取消</button>
       </div>
     </div>
+    <button class="btn add-task-btn" style="margin-top:16px;" onclick="showHabitForm()">+ 新建习惯</button>
   </div>
-
-  <!-- Bootstrap JS Bundle (包含 Popper) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
   <script>
-    // 任务相关逻辑
-    const taskList = document.getElementById("taskList");
-    const taskInput = document.getElementById("taskInput");
-    let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
-
+    // 数据结构
+    let tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+    let habits = JSON.parse(localStorage.getItem('habits')||'[]');
+    let timerIntervals = {}; // {subtaskId: intervalId}
+    // 工具函数
     function saveTasks() {
-      localStorage.setItem("tasks", JSON.stringify(tasks));
+      localStorage.setItem('tasks', JSON.stringify(tasks));
     }
-
+    function saveHabits() {
+      localStorage.setItem('habits', JSON.stringify(habits));
+    }
+    function formatTime(seconds) {
+      const h = Math.floor(seconds/3600);
+      const m = Math.floor((seconds%3600)/60);
+      const s = seconds%60;
+      return `${h>0?h+':':''}${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }
+    function getTodayStr() {
+      const d = new Date();
+      return d.toISOString().slice(0,10);
+    }
+    // 任务相关
+    function showTaskForm() {
+      document.getElementById('task-form-modal').style.display = 'flex';
+    }
+    function hideTaskForm() {
+      document.getElementById('task-form-modal').style.display = 'none';
+      document.getElementById('task-title-input').value = '';
+      document.getElementById('task-estimate-input').value = '';
+    }
+    function addTask() {
+      const title = document.getElementById('task-title-input').value.trim();
+      const estimate = Number(document.getElementById('task-estimate-input').value);
+      if (!title) return alert('请输入任务名称');
+      tasks.push({
+        id: 'task_'+Date.now(),
+        title,
+        estimate: estimate || 0,
+        subtasks: [],
+        timeSpent: 0
+      });
+      saveTasks();
+      hideTaskForm();
+      renderTasks();
+    }
+    function addSubtask(taskId, parentSubtaskId, level) {
+      const name = prompt('子任务名称：');
+      if (!name) return;
+      const task = tasks.find(t=>t.id===taskId);
+      let parent = task;
+      if (parentSubtaskId) {
+        function findSubtask(subtasks, id) {
+          for (let s of subtasks) {
+            if (s.id===id) return s;
+            if (s.subtasks) {
+              const found = findSubtask(s.subtasks, id);
+              if (found) return found;
+            }
+          }
+        }
+        parent = findSubtask(task.subtasks, parentSubtaskId);
+      }
+      if (!parent.subtasks) parent.subtasks = [];
+      if (level>=3) return alert('最多三级分解');
+      parent.subtasks.push({
+        id: 'sub_'+Date.now()+Math.random(),
+        name,
+        subtasks: [],
+        timeSpent: 0,
+        running: false,
+        timeLog: []
+      });
+      saveTasks();
+      renderTasks();
+    }
     function renderTasks() {
-      taskList.innerHTML = "";
-      tasks.forEach((task, i) => {
-        const li = document.createElement("li");
-        li.className = "list-group-item d-flex justify-content-between align-items-center";
-        if (task.done) li.classList.add("task-done");
-        li.textContent = task.text;
-        li.onclick = () => toggleTask(i);
-
-        // 删除按钮
-        const delBtn = document.createElement("button");
-        delBtn.className = "btn btn-sm btn-outline-danger";
-        delBtn.textContent = "删除";
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          deleteTask(i);
-        };
-        li.appendChild(delBtn);
-        taskList.appendChild(li);
+      const board = document.getElementById('task-board');
+      board.innerHTML = '';
+      tasks.forEach(task => {
+        // 统计进度
+        let totalLeaf = 0, doneLeaf = 0, totalTimeSpent = 0;
+        function countLeafs(subtasks) {
+          let count = 0;
+          for (let s of subtasks) {
+            if (s.subtasks && s.subtasks.length>0) {
+              count += countLeafs(s.subtasks);
+            } else {
+              count++;
+              if (s.done) doneLeaf++;
+              totalTimeSpent += s.timeSpent||0;
+            }
+          }
+          return count;
+        }
+        totalLeaf = countLeafs(task.subtasks);
+        // 进度百分比
+        let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
+        // 统计总用时
+        totalTimeSpent += task.timeSpent||0;
+        // 卡片
+        const card = document.createElement('div');
+        card.className = 'task-card';
+        card.innerHTML = `
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
+          <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
+          <div style="font-size:0.95em;">完成度: ${percent}%</div>
+          <ul class="subtasks"></ul>
+          <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
+        `;
+        // 渲染子任务
+        function renderSubtasks(ul, subtasks, level, parentTaskId) {
+          subtasks.forEach(sub => {
+            const li = document.createElement('li');
+            li.className = `subtask subtask-level-${level}`;
+            let leaf = (!sub.subtasks || sub.subtasks.length===0);
+            li.innerHTML = `
+              <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
+              ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(sub.timeSpent||0)}</span>`:''}
+              <div class="subtask-controls">
+                ${level<3?`<button class='btn btn-small' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:''}
+                ${leaf?`
+                  <button class='btn btn-small' onclick="startTimer('${task.id}','${sub.id}')" ${sub.running?'disabled':''}>开始</button>
+                  <button class='btn btn-small' onclick="stopTimer('${task.id}','${sub.id}')" ${!sub.running?'disabled':''}>结束</button>
+                  <button class='btn btn-small' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
+                `:''}
+              </div>
+            `;
+            ul.appendChild(li);
+            if (sub.subtasks && sub.subtasks.length>0) {
+              const subUl = document.createElement('ul');
+              subUl.className = 'subtasks';
+              renderSubtasks(subUl, sub.subtasks, level+1, parentTaskId);
+              ul.appendChild(subUl);
+            }
+          });
+        }
+        renderSubtasks(card.querySelector('.subtasks'), task.subtasks, 1, task.id);
+        board.appendChild(card);
       });
     }
-
-    function addTask() {
-      const text = taskInput.value.trim();
-      if (!text) return alert("请输入任务内容");
-      tasks.push({ text, done: false });
-      taskInput.value = "";
+    function findSubtaskById(subtasks, id) {
+      for (let s of subtasks) {
+        if (s.id===id) return s;
+        if (s.subtasks) {
+          const found = findSubtaskById(s.subtasks, id);
+          if (found) return found;
+        }
+      }
+    }
+    function startTimer(taskId, subtaskId) {
+      const task = tasks.find(t=>t.id===taskId);
+      const sub = findSubtaskById(task.subtasks, subtaskId);
+      if (sub.running) return;
+      sub.running = true;
+      sub._startTime = Date.now();
+      timerIntervals[subtaskId] = setInterval(()=>{
+        sub.timeSpent = (sub.timeSpent||0) + 1;
+        renderTasks();
+      }, 1000);
       saveTasks();
       renderTasks();
     }
-
-    function toggleTask(i) {
-      tasks[i].done = !tasks[i].done;
+    function stopTimer(taskId, subtaskId) {
+      const task = tasks.find(t=>t.id===taskId);
+      const sub = findSubtaskById(task.subtasks, subtaskId);
+      if (!sub.running) return;
+      sub.running = false;
+      clearInterval(timerIntervals[subtaskId]);
+      timerIntervals[subtaskId] = null;
       saveTasks();
       renderTasks();
     }
-
-    function deleteTask(i) {
-      tasks.splice(i, 1);
+    function markDone(taskId, subtaskId) {
+      const task = tasks.find(t=>t.id===taskId);
+      const sub = findSubtaskById(task.subtasks, subtaskId);
+      sub.done = true;
+      sub.running = false;
+      if (timerIntervals[subtaskId]) {
+        clearInterval(timerIntervals[subtaskId]);
+        timerIntervals[subtaskId] = null;
+      }
       saveTasks();
       renderTasks();
     }
-
+    // 习惯相关
+    function showHabitForm() {
+      document.getElementById('habit-form-modal').style.display = 'flex';
+    }
+    function hideHabitForm() {
+      document.getElementById('habit-form-modal').style.display = 'none';
+      document.getElementById('habit-title-input').value = '';
+    }
+    function addHabit() {
+      const title = document.getElementById('habit-title-input').value.trim();
+      if (!title) return alert('请输入习惯名称');
+      habits.push({
+        id: 'habit_'+Date.now(),
+        title,
+        days: {} // {date: true}
+      });
+      saveHabits();
+      hideHabitForm();
+      renderHabits();
+    }
+    function toggleHabitDone(habitId, dateStr) {
+      const habit = habits.find(h=>h.id===habitId);
+      if (!habit.days) habit.days = {};
+      habit.days[dateStr] = !habit.days[dateStr];
+      saveHabits();
+      renderHabits();
+    }
+    function renderHabits() {
+      const board = document.getElementById('habit-board');
+      board.innerHTML = '';
+      habits.forEach(habit => {
+        const card = document.createElement('div');
+        card.className = 'habit-card';
+        card.innerHTML = `<div class='habit-label'>${habit.title}</div>`;
+        // 生成最近6周的日期
+        const today = new Date();
+        let days = [];
+        for (let i=41;i>=0;i--) {
+          const d = new Date(today.getTime()-i*24*3600*1000);
+          days.push(d.toISOString().slice(0,10));
+        }
+        // 热力图
+        const heatmap = document.createElement('div');
+        heatmap.className = 'heatmap';
+        days.forEach(dateStr => {
+          const dayDiv = document.createElement('div');
+          dayDiv.className = 'heatmap-day'+(habit.days[dateStr]?' done':'');
+          dayDiv.title = dateStr;
+          dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
+          heatmap.appendChild(dayDiv);
+        });
+        card.appendChild(heatmap);
+        // 标签
+        const labels = document.createElement('div');
+        labels.className = 'heatmap-labels';
+        labels.innerHTML = '<span>周一</span><span>周日</span>';
+        card.appendChild(labels);
+        board.appendChild(card);
+      });
+    }
+    // 初始化
     renderTasks();
-
-    // 学习时长计时器
-    let timer = null;
-    let minutes = parseInt(localStorage.getItem("minutes") || "0");
-    document.getElementById("time").textContent = minutes;
-
-    function startTimer() {
-      if (timer) return;
-      timer = setInterval(() => {
-        minutes++;
-        document.getElementById("time").textContent = minutes;
-        localStorage.setItem("minutes", minutes);
-      }, 60000);
-    }
-
-    function stopTimer() {
-      clearInterval(timer);
-      timer = null;
-    }
+    renderHabits();
   </script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>学习计划</title>
-<style>
-  body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
-  li.done { text-decoration: line-through; color: gray; }
-</style>
-</head>
-<body>
-<h1>我的任务管理</h1>
-
-<input id="taskInput" type="text" placeholder="输入新任务">
-<button onclick="addTask()">添加任务</button>
-
-<ul id="taskList"></ul>
-
-<script>
-const taskList = document.getElementById('taskList');
-const taskInput = document.getElementById('taskInput');
-
-// 从 localStorage 加载任务
-let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-renderTasks();
-
-function addTask() {
-    const text = taskInput.value.trim();
-    if (!text) return;
-    tasks.push({text, done: false});
-    taskInput.value = '';
-    saveTasks();
-    renderTasks();
-}
-
-function toggleTask(i) {
-    tasks[i].done = !tasks[i].done;
-    saveTasks();
-    renderTasks();
-}
-
-function deleteTask(i) {
-    tasks.splice(i, 1);
-    saveTasks();
-    renderTasks();
-}
-
-function renderTasks() {
-    taskList.innerHTML = '';
-    tasks.forEach((task, i) => {
-        const li = document.createElement('li');
-        li.textContent = task.text;
-        li.className = task.done ? 'done' : '';
-        li.onclick = () => toggleTask(i);
-
-        const delBtn = document.createElement('button');
-        delBtn.textContent = '删除';
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteTask(i);
-        };
-
-        li.appendChild(delBtn);
-        taskList.appendChild(li);
-    });
-}
-
-function saveTasks() {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-}
-</script>
-<h2>学习时长统计</h2>
-<p>已学习：<span id="time">0</span> 分钟</p>
-<button onclick="start()">开始</button>
-<button onclick="stop()">停止</button>
-
-<script>
-let timer = null;
-let minutes = parseInt(localStorage.getItem('minutes') || '0');
-document.getElementById('time').textContent = minutes;
-
-function start() {
-    if (timer) return;
-    timer = setInterval(() => {
-        minutes++;
-        document.getElementById('time').textContent = minutes;
-        localStorage.setItem('minutes', minutes);
-    }, 60000); // 1分钟
-}
-
-function stop() {
-    clearInterval(timer);
-    timer = null;
-}
-</script>
 </body>
 </html>
