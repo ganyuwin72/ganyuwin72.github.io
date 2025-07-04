@@ -287,7 +287,8 @@
       <button class="btn add-task-btn" onclick="showTaskForm()">+ 新建任务</button>
       <div id="task-board" class="task-board"></div>
       <h2 style="margin-top:40px;">每日习惯</h2>
-      <div id="habit-board" style="display:flex;flex-wrap:wrap;gap:24px;"></div>
+      <button class="btn add-task-btn" style="margin-bottom:16px;" onclick="showHabitForm()">+ 新建习惯</button>
+      <div id="habit-board" class="habit-board"></div>
       <!-- 任务表单弹窗 -->
       <div id="task-form-modal" class="modal">
         <div class="modal-content">
@@ -316,7 +317,15 @@
           <button class="btn btn-small" onclick="hideDateModal()">取消</button>
         </div>
       </div>
-      <button class="btn add-task-btn" style="margin-top:16px;" onclick="showHabitForm()">+ 新建习惯</button>
+      <!-- 计时弹窗 -->
+      <div id="timer-modal" class="modal" style="display:none;z-index:4000;">
+        <div class="modal-content" style="min-width:200px;text-align:center;">
+          <h3>计时中</h3>
+          <div id="timer-modal-time" style="font-size:2em;margin:16px 0;">00:00</div>
+          <button class="btn" onclick="stopTimerModal(true)">完成并累计</button>
+          <button class="btn btn-small" onclick="stopTimerModal(false)">取消</button>
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -512,12 +521,14 @@
         let totalTimeSpent = getTotalTimeSpent(task.subtasks);
         totalTimeSpent += task.timeSpent||0;
         card.innerHTML = `
-          <div class="task-title">${task.title}</div>
+          <div class="task-title" style="${percent===100?'color:#aaa;':''}">${task.title}</div>
           <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
           <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
           <div style="font-size:0.95em;">完成度: ${percent}%</div>
           <ul class="subtasks"></ul>
           <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
+          <button class="btn btn-small" onclick="deleteTask('${task.id}')">删除任务</button>
+          <button class="btn btn-small" onclick="restoreTask('${task.id}')">复原全部子任务</button>
         `;
         function renderSubtasks(ul, subs, level, parentTaskId) {
           subs.forEach((sub, subIdx) => {
@@ -530,18 +541,21 @@
             li.ondragend = ()=>li.classList.remove('dragging');
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
             let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
+            let gray = sub.done?"color:#aaa;background:#eee;":"";
             li.innerHTML = `
               <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
               ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(subTotalTime)}</span>`:''}
               <div class="subtask-controls">
                 ${level<3?`<button class='btn btn-small' onclick=\"addSubtask('${task.id}','${sub.id}',${level+1})\">+ 子任务</button>`:''}
                 ${leaf?`
-                  <button class='btn btn-small' onclick=\"startTimer('${task.id}','${sub.id}')\" ${sub.running?'disabled':''}>开始</button>
-                  <button class='btn btn-small' onclick=\"stopTimer('${task.id}','${sub.id}')\" ${!sub.running?'disabled':''}>结束</button>
+                  <button class='btn btn-small' onclick=\"showTimerModal('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>计时</button>
                   <button class='btn btn-small' onclick=\"markDone('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>完成</button>
+                  <button class='btn btn-small' onclick=\"restoreSubtask('${task.id}','${sub.id}')\" ${!sub.done?'disabled':''}>复原</button>
+                  <button class='btn btn-small' onclick=\"deleteSubtask('${task.id}','${sub.id}')\">删除</button>
                 `:''}
               </div>
             `;
+            if(sub.done) li.style.color = '#aaa';
             ul.appendChild(li);
             if (sub.subtasks && sub.subtasks.length>0) {
               const subUl = document.createElement('ul');
@@ -574,6 +588,7 @@
         controls.innerHTML = `
           <button class='btn btn-small' onclick="toggleHabitDone('${habit.id}','${getTodayStr()}')">今日打卡</button>
           <button class='btn btn-small' onclick="showDateModal('${habit.id}')">补录打卡</button>
+          <button class='btn btn-small' onclick="deleteHabit('${habit.id}')">删除习惯</button>
         `;
         card.appendChild(controls);
         const today = new Date();
@@ -706,6 +721,57 @@
       saveHabits();
       habits = JSON.parse(localStorage.getItem('habits')||'[]');
       hideDateModal();
+      renderHabits();
+    }
+    function showTimerModal(taskId, subId) {
+      document.getElementById('timer-modal').style.display = 'flex';
+      let task = tasks.find(t=>t.id===taskId);
+      let sub = findSubtaskById(task.subtasks, subId);
+      let totalTimeSpent = getTotalTimeSpent(task.subtasks);
+      totalTimeSpent += task.timeSpent||0;
+      document.getElementById('timer-modal-time').innerText = formatTime(totalTimeSpent);
+    }
+    function stopTimerModal(complete) {
+      let taskId = dragInfo.parent.id.split('_')[1];
+      let subId = dragInfo.id;
+      if (complete) {
+        markDone(taskId, subId);
+      }
+      document.getElementById('timer-modal').style.display = 'none';
+    }
+    function deleteTask(taskId) {
+      tasks = tasks.filter(t=>t.id!==taskId);
+      saveTasks();
+      renderTasks();
+    }
+    function restoreTask(taskId) {
+      let task = tasks.find(t=>t.id===taskId);
+      task.timeSpent = 0;
+      task.subtasks.forEach(sub=>{
+        sub.timeSpent = 0;
+        sub.done = false;
+        sub.running = false;
+      });
+      saveTasks();
+      renderTasks();
+    }
+    function deleteSubtask(taskId, subId) {
+      let task = tasks.find(t=>t.id===taskId);
+      task.subtasks = task.subtasks.filter(s=>s.id!==subId);
+      saveTasks();
+      renderTasks();
+    }
+    function restoreSubtask(taskId, subId) {
+      let task = tasks.find(t=>t.id===taskId);
+      let sub = findSubtaskById(task.subtasks, subId);
+      sub.done = false;
+      sub.running = false;
+      saveTasks();
+      renderTasks();
+    }
+    function deleteHabit(habitId) {
+      habits = habits.filter(h=>h.id!==habitId);
+      saveHabits();
       renderHabits();
     }
     window.onload = function() {
