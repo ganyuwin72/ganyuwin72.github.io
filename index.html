@@ -270,6 +270,8 @@
       border-radius: 6px;
       border: 1px solid #ccc;
     }
+    .btn-edit { background: #888 !important; color: #fff !important; }
+    .btn-yellow { background: #bdb76b !important; color: #fff !important; }
   </style>
 </head>
 <body>
@@ -571,7 +573,7 @@
         if(percent===100) titleDiv.style.color = '#888';
         titleDiv.innerText = task.title;
         const editBtn = document.createElement('button');
-        editBtn.className = 'btn btn-small btn-secondary';
+        editBtn.className = 'btn btn-small btn-edit';
         editBtn.style.marginLeft = '8px';
         editBtn.innerText = '编辑';
         editBtn.onclick = ()=>editTaskTitle(task.id);
@@ -582,9 +584,9 @@
           <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
           <div style="font-size:0.95em;">完成度: ${percent}%</div>
           <ul class="subtasks"></ul>
-          <button class="btn btn-small btn-secondary" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
+          <button class="btn btn-small btn-yellow" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
           <button class="btn btn-small btn-danger" onclick="deleteTask('${task.id}')">删除任务</button>
-          <button class="btn btn-small btn-secondary" onclick="restoreTask('${task.id}')">复原全部子任务</button>
+          <button class="btn btn-small btn-yellow" onclick="restoreTask('${task.id}')">复原全部子任务</button>
         `;
         function renderSubtasks(ul, subs, level, parentTaskId) {
           subs.forEach((sub, subIdx) => {
@@ -601,7 +603,7 @@
             nameSpan.style.cssText = sub.done?'text-decoration:line-through;color:#888;':'';
             nameSpan.innerText = sub.name;
             const subEditBtn = document.createElement('button');
-            subEditBtn.className = 'btn btn-small btn-secondary';
+            subEditBtn.className = 'btn btn-small btn-edit';
             subEditBtn.style.marginLeft = '6px';
             subEditBtn.innerText = '编辑';
             subEditBtn.onclick = ()=>editSubtaskTitle(task.id, sub.id);
@@ -616,12 +618,12 @@
             const controlsDiv = document.createElement('div');
             controlsDiv.className = 'subtask-controls';
             controlsDiv.innerHTML =
-              (level<3?`<button class='btn btn-small btn-secondary' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:'')+
+              (level<3?`<button class='btn btn-small btn-yellow' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:'')+
               (leaf?`
-                <button class='btn btn-small' style='background:#43a047;' onclick="showTimerModal('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>计时</button>
-                <button class='btn btn-small btn-secondary' style='background:#bdb76b;' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
-                <button class='btn btn-small btn-secondary' style='background:#bdb76b;' onclick="restoreSubtask('${task.id}','${sub.id}')" ${!sub.done?'disabled':''}>复原</button>
-                <button class='btn btn-small btn-danger' style='background:#bdb76b;' onclick="deleteSubtask('${task.id}','${sub.id}')">删除</button>
+                <button class='btn btn-small btn-yellow' style='background:#43a047;' onclick="showTimerModal('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>计时</button>
+                <button class='btn btn-small btn-yellow' style='background:#bdb76b;' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
+                <button class='btn btn-small btn-yellow' style='background:#bdb76b;' onclick="restoreSubtask('${task.id}','${sub.id}')" ${!sub.done?'disabled':''}>复原</button>
+                <button class='btn btn-small btn-yellow' style='background:#bdb76b;' onclick="deleteSubtask('${task.id}','${sub.id}')">删除</button>
               `:'');
             li.appendChild(controlsDiv);
             ul.appendChild(li);
@@ -654,7 +656,7 @@
         labelDiv.className = 'habit-label';
         labelDiv.innerText = habit.title;
         const editBtn = document.createElement('button');
-        editBtn.className = 'btn btn-small btn-secondary';
+        editBtn.className = 'btn btn-small btn-edit';
         editBtn.style.marginLeft = '8px';
         editBtn.innerText = '编辑';
         editBtn.onclick = ()=>editHabitTitle(habit.id);
@@ -663,8 +665,8 @@
         const controls = document.createElement('div');
         controls.className = 'habit-controls';
         controls.innerHTML = `
-          <button class='btn btn-small' style='background:#43a047;' onclick="toggleHabitDone('${habit.id}','${getTodayStr()}')">今日打卡</button>
-          <button class='btn btn-small btn-secondary' onclick="showDateModal('${habit.id}')">补录打卡</button>
+          <button class='btn btn-small btn-yellow' style='background:#43a047;' onclick="toggleHabitDone('${habit.id}','${getTodayStr()}')">今日打卡</button>
+          <button class='btn btn-small btn-yellow' onclick="showDateModal('${habit.id}')">补录打卡</button>
           <button class='btn btn-small btn-danger' onclick="deleteHabit('${habit.id}')">删除习惯</button>
         `;
         card.appendChild(controls);
