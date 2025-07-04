@@ -711,6 +711,17 @@
         showPasswordModal();
       }
     }
+    function showPasswordModal() {
+      document.getElementById('password-modal').style.display = 'flex';
+      document.getElementById('main-app').style.display = 'none';
+      setTimeout(() => {
+        document.getElementById('password-input').focus();
+      }, 100);
+    }
+    function hidePasswordModal() {
+      document.getElementById('password-modal').style.display = 'none';
+      document.getElementById('main-app').style.display = '';
+    }
   </script>
 </body>
 </html>
