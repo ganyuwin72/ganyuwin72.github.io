@@ -187,8 +187,28 @@
   </div>
   <script>
     // 数据结构
-    let tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
-    let habits = JSON.parse(localStorage.getItem('habits')||'[]');
+    function safeParseTasks() {
+      try {
+        const t = JSON.parse(localStorage.getItem('tasks')||'[]');
+        if (!Array.isArray(t)) throw new Error('tasks not array');
+        return t;
+      } catch(e) {
+        localStorage.setItem('tasks','[]');
+        return [];
+      }
+    }
+    function safeParseHabits() {
+      try {
+        const h = JSON.parse(localStorage.getItem('habits')||'[]');
+        if (!Array.isArray(h)) throw new Error('habits not array');
+        return h;
+      } catch(e) {
+        localStorage.setItem('habits','[]');
+        return [];
+      }
+    }
+    let tasks = safeParseTasks();
+    let habits = safeParseHabits();
     let timerIntervals = {}; // {subtaskId: intervalId}
     // 工具函数
     function saveTasks() {
@@ -228,6 +248,7 @@
         timeSpent: 0
       });
       saveTasks();
+      tasks = safeParseTasks(); // 重新读取，确保一致
       hideTaskForm();
       renderTasks();
     }
@@ -259,73 +280,81 @@
         timeLog: []
       });
       saveTasks();
+      tasks = safeParseTasks();
       renderTasks();
     }
     function renderTasks() {
-      const board = document.getElementById('task-board');
-      board.innerHTML = '';
-      tasks.forEach(task => {
-        // 统计进度
-        let totalLeaf = 0, doneLeaf = 0, totalTimeSpent = 0;
-        function countLeafs(subtasks) {
-          let count = 0;
-          for (let s of subtasks) {
-            if (s.subtasks && s.subtasks.length>0) {
-              count += countLeafs(s.subtasks);
-            } else {
-              count++;
-              if (s.done) doneLeaf++;
-              totalTimeSpent += s.timeSpent||0;
+      try {
+        tasks = safeParseTasks();
+        const board = document.getElementById('task-board');
+        board.innerHTML = '';
+        tasks.forEach(task => {
+          // 统计进度
+          let totalLeaf = 0, doneLeaf = 0, totalTimeSpent = 0;
+          function countLeafs(subtasks) {
+            let count = 0;
+            for (let s of subtasks) {
+              if (s.subtasks && s.subtasks.length>0) {
+                count += countLeafs(s.subtasks);
+              } else {
+                count++;
+                if (s.done) doneLeaf++;
+                totalTimeSpent += s.timeSpent||0;
+              }
             }
+            return count;
           }
-          return count;
-        }
-        totalLeaf = countLeafs(task.subtasks);
-        // 进度百分比
-        let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
-        // 统计总用时
-        totalTimeSpent += task.timeSpent||0;
-        // 卡片
-        const card = document.createElement('div');
-        card.className = 'task-card';
-        card.innerHTML = `
-          <div class="task-title">${task.title}</div>
-          <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
-          <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
-          <div style="font-size:0.95em;">完成度: ${percent}%</div>
-          <ul class="subtasks"></ul>
-          <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
-        `;
-        // 渲染子任务
-        function renderSubtasks(ul, subtasks, level, parentTaskId) {
-          subtasks.forEach(sub => {
-            const li = document.createElement('li');
-            li.className = `subtask subtask-level-${level}`;
-            let leaf = (!sub.subtasks || sub.subtasks.length===0);
-            li.innerHTML = `
-              <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
-              ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(sub.timeSpent||0)}</span>`:''}
-              <div class="subtask-controls">
-                ${level<3?`<button class='btn btn-small' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:''}
-                ${leaf?`
-                  <button class='btn btn-small' onclick="startTimer('${task.id}','${sub.id}')" ${sub.running?'disabled':''}>开始</button>
-                  <button class='btn btn-small' onclick="stopTimer('${task.id}','${sub.id}')" ${!sub.running?'disabled':''}>结束</button>
-                  <button class='btn btn-small' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
-                `:''}
-              </div>
-            `;
-            ul.appendChild(li);
-            if (sub.subtasks && sub.subtasks.length>0) {
-              const subUl = document.createElement('ul');
-              subUl.className = 'subtasks';
-              renderSubtasks(subUl, sub.subtasks, level+1, parentTaskId);
-              ul.appendChild(subUl);
-            }
-          });
-        }
-        renderSubtasks(card.querySelector('.subtasks'), task.subtasks, 1, task.id);
-        board.appendChild(card);
-      });
+          totalLeaf = countLeafs(task.subtasks);
+          // 进度百分比
+          let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
+          // 统计总用时
+          totalTimeSpent += task.timeSpent||0;
+          // 卡片
+          const card = document.createElement('div');
+          card.className = 'task-card';
+          card.innerHTML = `
+            <div class="task-title">${task.title}</div>
+            <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
+            <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
+            <div style="font-size:0.95em;">完成度: ${percent}%</div>
+            <ul class="subtasks"></ul>
+            <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
+          `;
+          // 渲染子任务
+          function renderSubtasks(ul, subtasks, level, parentTaskId) {
+            subtasks.forEach(sub => {
+              const li = document.createElement('li');
+              li.className = `subtask subtask-level-${level}`;
+              let leaf = (!sub.subtasks || sub.subtasks.length===0);
+              li.innerHTML = `
+                <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
+                ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(sub.timeSpent||0)}</span>`:''}
+                <div class="subtask-controls">
+                  ${level<3?`<button class='btn btn-small' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:''}
+                  ${leaf?`
+                    <button class='btn btn-small' onclick="startTimer('${task.id}','${sub.id}')" ${sub.running?'disabled':''}>开始</button>
+                    <button class='btn btn-small' onclick="stopTimer('${task.id}','${sub.id}')" ${!sub.running?'disabled':''}>结束</button>
+                    <button class='btn btn-small' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
+                  `:''}
+                </div>
+              `;
+              ul.appendChild(li);
+              if (sub.subtasks && sub.subtasks.length>0) {
+                const subUl = document.createElement('ul');
+                subUl.className = 'subtasks';
+                renderSubtasks(subUl, sub.subtasks, level+1, parentTaskId);
+                ul.appendChild(subUl);
+              }
+            });
+          }
+          renderSubtasks(card.querySelector('.subtasks'), task.subtasks, 1, task.id);
+          board.appendChild(card);
+        });
+      } catch(e) {
+        alert('任务数据异常，已重置。');
+        localStorage.setItem('tasks','[]');
+        location.reload();
+      }
     }
     function findSubtaskById(subtasks, id) {
       for (let s of subtasks) {
