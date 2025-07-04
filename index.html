@@ -507,6 +507,34 @@
       }
       return total;
     }
+    function editTaskTitle(taskId) {
+      let task = tasks.find(t=>t.id===taskId);
+      let newTitle = prompt('修改任务名称：', task.title);
+      if (newTitle && newTitle.trim()) {
+        task.title = newTitle.trim();
+        saveTasks();
+        renderTasks();
+      }
+    }
+    function editSubtaskTitle(taskId, subId) {
+      let task = tasks.find(t=>t.id===taskId);
+      let sub = findSubtaskById(task.subtasks, subId);
+      let newTitle = prompt('修改子任务名称：', sub.name);
+      if (newTitle && newTitle.trim()) {
+        sub.name = newTitle.trim();
+        saveTasks();
+        renderTasks();
+      }
+    }
+    function editHabitTitle(habitId) {
+      let habit = habits.find(h=>h.id===habitId);
+      let newTitle = prompt('修改习惯名称：', habit.title);
+      if (newTitle && newTitle.trim()) {
+        habit.title = newTitle.trim();
+        saveHabits();
+        renderHabits();
+      }
+    }
     function renderTasks() {
       tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
       const totalTime = getAllTasksTotalTime();
@@ -514,13 +542,6 @@
       const board = document.getElementById('task-board');
       board.innerHTML = '';
       tasks.forEach((task, idx) => {
-        const card = document.createElement('div');
-        card.className = 'task-card';
-        card.setAttribute('draggable','true');
-        card.ondragstart = e=>taskDragStart(e, idx);
-        card.ondragover = e=>taskDragOver(e, idx);
-        card.ondrop = e=>taskDrop(e, idx);
-        card.ondragend = ()=>card.classList.remove('dragging');
         let totalLeaf = 0, doneLeaf = 0;
         function countLeafs(subs) {
           let count = 0;
@@ -538,20 +559,29 @@
         let percent = totalLeaf?Math.round(doneLeaf/totalLeaf*100):0;
         let totalTimeSpent = getTotalTimeSpent(task.subtasks);
         totalTimeSpent += task.timeSpent||0;
+        const card = document.createElement('div');
+        card.className = 'task-card' + (percent===100 ? ' completed' : '');
+        card.setAttribute('draggable','true');
+        card.ondragstart = e=>taskDragStart(e, idx);
+        card.ondragover = e=>taskDragOver(e, idx);
+        card.ondrop = e=>taskDrop(e, idx);
+        card.ondragend = ()=>card.classList.remove('dragging');
         card.innerHTML = `
-          <div class="task-title" style="${percent===100?'color:#aaa;':''}">${task.title}</div>
+          <div class="task-title" style="${percent===100?'color:#888;':''}">${task.title}
+            <button class='btn btn-small btn-secondary' style='margin-left:8px;' onclick="editTaskTitle('${task.id}')">编辑</button>
+          </div>
           <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
           <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
           <div style="font-size:0.95em;">完成度: ${percent}%</div>
           <ul class="subtasks"></ul>
-          <button class="btn btn-small" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
-          <button class="btn btn-small" onclick="deleteTask('${task.id}')">删除任务</button>
-          <button class="btn btn-small" onclick="restoreTask('${task.id}')">复原全部子任务</button>
+          <button class="btn btn-small btn-secondary" onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
+          <button class="btn btn-small btn-danger" onclick="deleteTask('${task.id}')">删除任务</button>
+          <button class="btn btn-small btn-secondary" onclick="restoreTask('${task.id}')">复原全部子任务</button>
         `;
         function renderSubtasks(ul, subs, level, parentTaskId) {
           subs.forEach((sub, subIdx) => {
             const li = document.createElement('li');
-            li.className = `subtask subtask-level-${level}`;
+            li.className = `subtask subtask-level-${level}` + (sub.done ? ' completed' : '');
             li.setAttribute('draggable','true');
             li.ondragstart = e=>subtaskDragStart(e, subIdx, subs);
             li.ondragover = e=>subtaskDragOver(e, subIdx);
@@ -559,21 +589,21 @@
             li.ondragend = ()=>li.classList.remove('dragging');
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
             let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
-            let gray = sub.done?"color:#aaa;background:#eee;":"";
             li.innerHTML = `
-              <span style="${sub.done?'text-decoration:line-through;color:#aaa;':''}">${sub.name}</span>
+              <span style="${sub.done?'text-decoration:line-through;color:#888;':''}">${sub.name}
+                <button class='btn btn-small btn-secondary' style='margin-left:6px;' onclick=\"editSubtaskTitle('${task.id}','${sub.id}')\">编辑</button>
+              </span>
               ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(subTotalTime)}</span>`:''}
               <div class="subtask-controls">
-                ${level<3?`<button class='btn btn-small' onclick=\"addSubtask('${task.id}','${sub.id}',${level+1})\">+ 子任务</button>`:''}
+                ${level<3?`<button class='btn btn-small btn-secondary' onclick=\"addSubtask('${task.id}','${sub.id}',${level+1})\">+ 子任务</button>`:''}
                 ${leaf?`
-                  <button class='btn btn-small' onclick=\"showTimerModal('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>计时</button>
-                  <button class='btn btn-small' onclick=\"markDone('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>完成</button>
-                  <button class='btn btn-small' onclick=\"restoreSubtask('${task.id}','${sub.id}')\" ${!sub.done?'disabled':''}>复原</button>
-                  <button class='btn btn-small' onclick=\"deleteSubtask('${task.id}','${sub.id}')\">删除</button>
+                  <button class='btn btn-small' style='background:#43a047;' onclick=\"showTimerModal('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>计时</button>
+                  <button class='btn btn-small btn-secondary' onclick=\"markDone('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>完成</button>
+                  <button class='btn btn-small btn-secondary' onclick=\"restoreSubtask('${task.id}','${sub.id}')\" ${!sub.done?'disabled':''}>复原</button>
+                  <button class='btn btn-small btn-danger' onclick=\"deleteSubtask('${task.id}','${sub.id}')\">删除</button>
                 `:''}
               </div>
             `;
-            if(sub.done) li.style.color = '#aaa';
             ul.appendChild(li);
             if (sub.subtasks && sub.subtasks.length>0) {
               const subUl = document.createElement('ul');
@@ -600,13 +630,15 @@
         card.ondragover = e=>habitDragOver(e, idx);
         card.ondrop = e=>habitDrop(e, idx);
         card.ondragend = ()=>card.classList.remove('dragging');
-        card.innerHTML = `<div class='habit-label'>${habit.title}</div>`;
+        card.innerHTML = `<div class='habit-label'>${habit.title}
+          <button class='btn btn-small btn-secondary' style='margin-left:8px;' onclick="editHabitTitle('${habit.id}')">编辑</button>
+        </div>`;
         const controls = document.createElement('div');
         controls.className = 'habit-controls';
         controls.innerHTML = `
-          <button class='btn btn-small' onclick="toggleHabitDone('${habit.id}','${getTodayStr()}')">今日打卡</button>
-          <button class='btn btn-small' onclick="showDateModal('${habit.id}')">补录打卡</button>
-          <button class='btn btn-small' onclick="deleteHabit('${habit.id}')">删除习惯</button>
+          <button class='btn btn-small' style='background:#43a047;' onclick="toggleHabitDone('${habit.id}','${getTodayStr()}')">今日打卡</button>
+          <button class='btn btn-small btn-secondary' onclick="showDateModal('${habit.id}')">补录打卡</button>
+          <button class='btn btn-small btn-danger' onclick="deleteHabit('${habit.id}')">删除习惯</button>
         `;
         card.appendChild(controls);
         const today = new Date();
