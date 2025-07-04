@@ -174,42 +174,117 @@
     .modal-content input {
       margin-bottom: 8px;
     }
+    .password-modal {
+      display: flex;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.25);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    .password-modal-content {
+      background: #fff;
+      padding: 32px 24px;
+      border-radius: 12px;
+      min-width: 320px;
+      max-width: 90vw;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .password-modal-content input {
+      font-size: 1.1em;
+      padding: 6px 12px;
+      margin-bottom: 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      width: 200px;
+      text-align: center;
+    }
+    .password-modal-content .btn {
+      width: 100%;
+    }
+    .password-error {
+      color: #e74c3c;
+      margin-bottom: 8px;
+      font-size: 0.98em;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>任务管理与计时统计</h1>
-    <button class="btn add-task-btn" onclick="showTaskForm()">+ 新建任务</button>
-    <div id="task-board" class="task-board"></div>
-    <h2 style="margin-top:40px;">每日习惯</h2>
-    <div id="habit-board" style="display:flex;flex-wrap:wrap;gap:24px;"></div>
-    <!-- 任务表单弹窗 -->
-    <div id="task-form-modal" class="modal">
-      <div class="modal-content">
-        <h3>新建任务</h3>
-        <label>任务名称：<input id="task-title-input" style="width:90%"></label><br>
-        <label>预计完成时间（小时）：<input id="task-estimate-input" type="number" min="0" style="width:60px;"></label><br>
-        <button class="btn" onclick="addTask()">添加</button>
-        <button class="btn btn-small" onclick="hideTaskForm()">取消</button>
-      </div>
+  <div id="password-modal" class="password-modal" style="display:none;">
+    <div class="password-modal-content">
+      <div style="font-size:1.1em;margin-bottom:8px;">请输入访问密码</div>
+      <input id="password-input" type="password" placeholder="密码" autocomplete="off" onkeydown="if(event.key==='Enter'){checkPassword();}">
+      <div id="password-error" class="password-error" style="display:none;"></div>
+      <button class="btn" onclick="checkPassword()">进入</button>
     </div>
-    <!-- 习惯表单弹窗 -->
-    <div id="habit-form-modal" class="modal">
-      <div class="modal-content">
-        <h3>新建习惯</h3>
-        <label>习惯名称：<input id="habit-title-input" style="width:90%"></label><br>
-        <button class="btn" onclick="addHabit()">添加</button>
-        <button class="btn btn-small" onclick="hideHabitForm()">取消</button>
+  </div>
+  <div id="main-app" style="display:none;">
+    <div class="container">
+      <h1>任务管理与计时统计</h1>
+      <button class="btn add-task-btn" onclick="showTaskForm()">+ 新建任务</button>
+      <div id="task-board" class="task-board"></div>
+      <h2 style="margin-top:40px;">每日习惯</h2>
+      <div id="habit-board" style="display:flex;flex-wrap:wrap;gap:24px;"></div>
+      <!-- 任务表单弹窗 -->
+      <div id="task-form-modal" class="modal">
+        <div class="modal-content">
+          <h3>新建任务</h3>
+          <label>任务名称：<input id="task-title-input" style="width:90%"></label><br>
+          <label>预计完成时间（小时）：<input id="task-estimate-input" type="number" min="0" style="width:60px;"></label><br>
+          <button class="btn" onclick="addTask()">添加</button>
+          <button class="btn btn-small" onclick="hideTaskForm()">取消</button>
+        </div>
       </div>
+      <!-- 习惯表单弹窗 -->
+      <div id="habit-form-modal" class="modal">
+        <div class="modal-content">
+          <h3>新建习惯</h3>
+          <label>习惯名称：<input id="habit-title-input" style="width:90%"></label><br>
+          <button class="btn" onclick="addHabit()">添加</button>
+          <button class="btn btn-small" onclick="hideHabitForm()">取消</button>
+        </div>
+      </div>
+      <button class="btn add-task-btn" style="margin-top:16px;" onclick="showHabitForm()">+ 新建习惯</button>
     </div>
-    <button class="btn add-task-btn" style="margin-top:16px;" onclick="showHabitForm()">+ 新建习惯</button>
   </div>
   <script>
-    // 数据结构
+    // ====== 密码功能 ======
+    const SITE_PASSWORD = '123456'; // 你可以自定义密码
+    function showPasswordModal() {
+      document.getElementById('password-modal').style.display = 'flex';
+      document.getElementById('main-app').style.display = 'none';
+      setTimeout(()=>{
+        document.getElementById('password-input').focus();
+      }, 100);
+    }
+    function hidePasswordModal() {
+      document.getElementById('password-modal').style.display = 'none';
+      document.getElementById('main-app').style.display = '';
+    }
+    function checkPassword() {
+      const input = document.getElementById('password-input').value;
+      if (input === SITE_PASSWORD) {
+        localStorage.setItem('site_authed', '1');
+        hidePasswordModal();
+      } else {
+        document.getElementById('password-error').innerText = '密码错误，请重试';
+        document.getElementById('password-error').style.display = 'block';
+      }
+    }
+    // 页面加载时检查
+    if (localStorage.getItem('site_authed') === '1') {
+      document.getElementById('main-app').style.display = '';
+    } else {
+      showPasswordModal();
+    }
+    // ====== 以下为原有任务/习惯管理代码 ======
     let tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
     let habits = JSON.parse(localStorage.getItem('habits')||'[]');
     let timers = {};
-    // 工具函数
     function saveTasks() { localStorage.setItem('tasks', JSON.stringify(tasks)); }
     function saveHabits() { localStorage.setItem('habits', JSON.stringify(habits)); }
     function formatTime(sec) {
@@ -218,7 +293,6 @@
       const s = sec%60;
       return `${h>0?h+':':''}${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
     }
-    // 任务相关
     function showTaskForm() {
       document.getElementById('task-form-modal').style.display = 'flex';
     }
@@ -383,7 +457,6 @@
         board.appendChild(card);
       });
     }
-    // 习惯相关
     function showHabitForm() {
       document.getElementById('habit-form-modal').style.display = 'flex';
     }
@@ -445,8 +518,10 @@
       });
     }
     // 初始化
-    renderTasks();
-    renderHabits();
+    if (localStorage.getItem('site_authed') === '1') {
+      renderTasks();
+      renderHabits();
+    }
   </script>
 </body>
 </html>
