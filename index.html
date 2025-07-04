@@ -336,6 +336,7 @@
     let dateModalHabitId = null;
     let dragInfo = { type: null, from: null, to: null, parent: null };
     let timerRenderInterval = null;
+    let timerModalTaskId = null, timerModalSubId = null, timerModalInterval = null, timerModalSeconds = 0;
 
     function saveTasks() { localStorage.setItem('tasks', JSON.stringify(tasks)); }
     function saveHabits() { localStorage.setItem('habits', JSON.stringify(habits)); }
@@ -594,23 +595,35 @@
         const today = new Date();
         let days = [];
         let start = new Date(today.getFullYear(),0,1);
-        for (let i=0;i<366;i++) {
+        for (let i=0;i<365;i++) {
           let d = new Date(start.getTime()+i*24*3600*1000);
           if (d>today) break;
           days.push(d.toISOString().slice(0,10));
         }
-        while (days.length<53*7) days.push('');
+        while (days.length<14*26) days.push('');
         const heatmap = document.createElement('div');
         heatmap.className = 'heatmap';
-        for (let col=0;col<53;col++) {
-          for (let row=0;row<7;row++) {
-            let idx = row+col*7;
+        heatmap.style.display = 'grid';
+        heatmap.style.gridTemplateColumns = 'repeat(26, 10px)';
+        heatmap.style.gridTemplateRows = 'repeat(14, 10px)';
+        for (let row=0;row<14;row++) {
+          for (let col=0;col<26;col++) {
+            let idx = col*14+row;
             let dateStr = days[idx];
             const dayDiv = document.createElement('div');
             dayDiv.className = 'heatmap-day'+(dateStr&&habit.days[dateStr]?' done':'');
             dayDiv.title = dateStr||'';
             if (dateStr) dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
             heatmap.appendChild(dayDiv);
+          }
+          if (row===6) {
+            const sep = document.createElement('div');
+            sep.style.gridColumn = '1 / span 26';
+            sep.style.height = '2px';
+            sep.style.background = '#bbb';
+            sep.style.margin = '2px 0';
+            sep.style.gridRow = (row+1);
+            heatmap.appendChild(sep);
           }
         }
         card.appendChild(heatmap);
@@ -724,20 +737,32 @@
       renderHabits();
     }
     function showTimerModal(taskId, subId) {
+      timerModalTaskId = taskId;
+      timerModalSubId = subId;
+      timerModalSeconds = 0;
       document.getElementById('timer-modal').style.display = 'flex';
-      let task = tasks.find(t=>t.id===taskId);
-      let sub = findSubtaskById(task.subtasks, subId);
-      let totalTimeSpent = getTotalTimeSpent(task.subtasks);
-      totalTimeSpent += task.timeSpent||0;
-      document.getElementById('timer-modal-time').innerText = formatTime(totalTimeSpent);
+      document.getElementById('timer-modal-time').innerText = '00:00';
+      if (timerModalInterval) clearInterval(timerModalInterval);
+      timerModalInterval = setInterval(() => {
+        timerModalSeconds++;
+        let m = Math.floor(timerModalSeconds/60).toString().padStart(2,'0');
+        let s = (timerModalSeconds%60).toString().padStart(2,'0');
+        document.getElementById('timer-modal-time').innerText = `${m}:${s}`;
+      }, 1000);
     }
-    function stopTimerModal(complete) {
-      let taskId = dragInfo.parent.id.split('_')[1];
-      let subId = dragInfo.id;
-      if (complete) {
-        markDone(taskId, subId);
-      }
+    function stopTimerModal(save) {
+      if (timerModalInterval) clearInterval(timerModalInterval);
       document.getElementById('timer-modal').style.display = 'none';
+      if (save && timerModalTaskId && timerModalSubId) {
+        let task = tasks.find(t=>t.id===timerModalTaskId);
+        let sub = findSubtaskById(task.subtasks, timerModalSubId);
+        sub.timeSpent = (sub.timeSpent||0) + timerModalSeconds;
+        saveTasks();
+        renderTasks();
+      }
+      timerModalTaskId = null;
+      timerModalSubId = null;
+      timerModalSeconds = 0;
     }
     function deleteTask(taskId) {
       tasks = tasks.filter(t=>t.id!==taskId);
@@ -757,7 +782,14 @@
     }
     function deleteSubtask(taskId, subId) {
       let task = tasks.find(t=>t.id===taskId);
-      task.subtasks = task.subtasks.filter(s=>s.id!==subId);
+      function removeSubtask(subs, id) {
+        for (let i = 0; i < subs.length; i++) {
+          if (subs[i].id === id) { subs.splice(i, 1); return true; }
+          if (subs[i].subtasks && removeSubtask(subs[i].subtasks, id)) return true;
+        }
+        return false;
+      }
+      removeSubtask(task.subtasks, subId);
       saveTasks();
       renderTasks();
     }
