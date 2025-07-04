@@ -326,6 +326,8 @@
     let habits = [];
     let timers = {};
     let dateModalHabitId = null;
+    // 拖动排序通用辅助（全局唯一）
+    let dragInfo = { type: null, from: null, to: null, parent: null };
     function saveTasks() { localStorage.setItem('tasks', JSON.stringify(tasks)); }
     function saveHabits() { localStorage.setItem('habits', JSON.stringify(habits)); }
     function formatTime(sec) {
@@ -349,8 +351,6 @@
       }
       return total;
     }
-    // 拖动排序通用辅助
-    let dragInfo = { type: null, from: null, to: null, parent: null };
     // 任务相关
     function showTaskForm() {
       document.getElementById('task-form-modal').style.display = 'flex';
@@ -534,6 +534,7 @@
         renderSubtasks(card.querySelector('.subtasks'), task.subtasks, 1, task.id);
         board.appendChild(card);
       });
+      ensureTimerRender();
     }
     // 习惯相关
     function showHabitForm() {
@@ -639,31 +640,9 @@
         card.appendChild(labels);
         board.appendChild(card);
       });
+      ensureTimerRender();
     }
     // 拖动排序通用辅助
-    let dragInfo = { type: null, from: null, to: null, parent: null };
-    // 习惯卡片拖动排序
-    function habitDragStart(e, idx) {
-      dragInfo = { type: 'habit', from: idx, to: null };
-      e.currentTarget.classList.add('dragging');
-    }
-    function habitDragOver(e, idx) {
-      e.preventDefault();
-      dragInfo.to = idx;
-    }
-    function habitDrop(e, idx) {
-      e.preventDefault();
-      if (dragInfo.type==='habit' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to) {
-        const moved = habits.splice(dragInfo.from,1)[0];
-        habits.splice(dragInfo.to,0,moved);
-        saveHabits();
-        habits = JSON.parse(localStorage.getItem('habits')||'[]');
-        renderHabits();
-      }
-      document.querySelectorAll('.habit-card').forEach(card=>card.classList.remove('dragging'));
-      dragInfo = { type: null, from: null, to: null };
-    }
-    // 任务卡片拖动排序
     function taskDragStart(e, idx) {
       dragInfo = { type: 'task', from: idx, to: null };
       e.currentTarget.classList.add('dragging');
