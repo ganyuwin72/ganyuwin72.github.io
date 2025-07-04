@@ -566,10 +566,18 @@
         card.ondragover = e=>taskDragOver(e, idx);
         card.ondrop = e=>taskDrop(e, idx);
         card.ondragend = ()=>card.classList.remove('dragging');
-        card.innerHTML = `
-          <div class="task-title" style="${percent===100?'color:#888;':''}">${task.title}
-            <button class='btn btn-small btn-secondary' style='margin-left:8px;' onclick="editTaskTitle('${task.id}')">编辑</button>
-          </div>
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'task-title';
+        if(percent===100) titleDiv.style.color = '#888';
+        titleDiv.innerText = task.title;
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-small btn-secondary';
+        editBtn.style.marginLeft = '8px';
+        editBtn.innerText = '编辑';
+        editBtn.onclick = ()=>editTaskTitle(task.id);
+        titleDiv.appendChild(editBtn);
+        card.appendChild(titleDiv);
+        card.innerHTML += `
           <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
           <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
           <div style="font-size:0.95em;">完成度: ${percent}%</div>
@@ -589,21 +597,33 @@
             li.ondragend = ()=>li.classList.remove('dragging');
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
             let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
-            li.innerHTML = `
-              <span style="${sub.done?'text-decoration:line-through;color:#888;':''}">${sub.name}
-                <button class='btn btn-small btn-secondary' style='margin-left:6px;' onclick=\"editSubtaskTitle('${task.id}','${sub.id}')\">编辑</button>
-              </span>
-              ${leaf?`<span style='color:#888;font-size:0.9em;'> | 已用: ${formatTime(subTotalTime)}</span>`:''}
-              <div class="subtask-controls">
-                ${level<3?`<button class='btn btn-small btn-secondary' onclick=\"addSubtask('${task.id}','${sub.id}',${level+1})\">+ 子任务</button>`:''}
-                ${leaf?`
-                  <button class='btn btn-small' style='background:#43a047;' onclick=\"showTimerModal('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>计时</button>
-                  <button class='btn btn-small btn-secondary' onclick=\"markDone('${task.id}','${sub.id}')\" ${sub.done?'disabled':''}>完成</button>
-                  <button class='btn btn-small btn-secondary' onclick=\"restoreSubtask('${task.id}','${sub.id}')\" ${!sub.done?'disabled':''}>复原</button>
-                  <button class='btn btn-small btn-danger' onclick=\"deleteSubtask('${task.id}','${sub.id}')\">删除</button>
-                `:''}
-              </div>
-            `;
+            const nameSpan = document.createElement('span');
+            nameSpan.style.cssText = sub.done?'text-decoration:line-through;color:#888;':'';
+            nameSpan.innerText = sub.name;
+            const subEditBtn = document.createElement('button');
+            subEditBtn.className = 'btn btn-small btn-secondary';
+            subEditBtn.style.marginLeft = '6px';
+            subEditBtn.innerText = '编辑';
+            subEditBtn.onclick = ()=>editSubtaskTitle(task.id, sub.id);
+            nameSpan.appendChild(subEditBtn);
+            li.appendChild(nameSpan);
+            if(leaf) {
+              const timeSpan = document.createElement('span');
+              timeSpan.style.cssText = 'color:#888;font-size:0.9em;';
+              timeSpan.innerText = ` | 已用: ${formatTime(subTotalTime)}`;
+              li.appendChild(timeSpan);
+            }
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'subtask-controls';
+            controlsDiv.innerHTML =
+              (level<3?`<button class='btn btn-small btn-secondary' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:'')+
+              (leaf?`
+                <button class='btn btn-small' style='background:#43a047;' onclick="showTimerModal('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>计时</button>
+                <button class='btn btn-small btn-secondary' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
+                <button class='btn btn-small btn-secondary' onclick="restoreSubtask('${task.id}','${sub.id}')" ${!sub.done?'disabled':''}>复原</button>
+                <button class='btn btn-small btn-danger' onclick="deleteSubtask('${task.id}','${sub.id}')">删除</button>
+              `:'');
+            li.appendChild(controlsDiv);
             ul.appendChild(li);
             if (sub.subtasks && sub.subtasks.length>0) {
               const subUl = document.createElement('ul');
@@ -630,9 +650,16 @@
         card.ondragover = e=>habitDragOver(e, idx);
         card.ondrop = e=>habitDrop(e, idx);
         card.ondragend = ()=>card.classList.remove('dragging');
-        card.innerHTML = `<div class='habit-label'>${habit.title}
-          <button class='btn btn-small btn-secondary' style='margin-left:8px;' onclick="editHabitTitle('${habit.id}')">编辑</button>
-        </div>`;
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'habit-label';
+        labelDiv.innerText = habit.title;
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-small btn-secondary';
+        editBtn.style.marginLeft = '8px';
+        editBtn.innerText = '编辑';
+        editBtn.onclick = ()=>editHabitTitle(habit.id);
+        labelDiv.appendChild(editBtn);
+        card.appendChild(labelDiv);
         const controls = document.createElement('div');
         controls.className = 'habit-controls';
         controls.innerHTML = `
