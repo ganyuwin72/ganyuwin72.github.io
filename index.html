@@ -619,9 +619,9 @@
               (level<3?`<button class='btn btn-small btn-secondary' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:'')+
               (leaf?`
                 <button class='btn btn-small' style='background:#43a047;' onclick="showTimerModal('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>计时</button>
-                <button class='btn btn-small btn-secondary' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
-                <button class='btn btn-small btn-secondary' onclick="restoreSubtask('${task.id}','${sub.id}')" ${!sub.done?'disabled':''}>复原</button>
-                <button class='btn btn-small btn-danger' onclick="deleteSubtask('${task.id}','${sub.id}')">删除</button>
+                <button class='btn btn-small btn-secondary' style='background:#bdb76b;' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
+                <button class='btn btn-small btn-secondary' style='background:#bdb76b;' onclick="restoreSubtask('${task.id}','${sub.id}')" ${!sub.done?'disabled':''}>复原</button>
+                <button class='btn btn-small btn-danger' style='background:#bdb76b;' onclick="deleteSubtask('${task.id}','${sub.id}')">删除</button>
               `:'');
             li.appendChild(controlsDiv);
             ul.appendChild(li);
