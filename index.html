@@ -271,7 +271,7 @@
       border: 1px solid #ccc;
     }
     .btn-edit { background: #888 !important; color: #fff !important; }
-    .btn-yellow { background: #bdb76b !important; color: #fff !important; }
+    .btn-yellow { background: #E5FFCC !important; color: #fff !important; }
   </style>
 </head>
 <body>
@@ -585,7 +585,7 @@
           <div style="font-size:0.95em;">完成度: ${percent}%</div>
           <ul class="subtasks"></ul>
           <button class="btn btn-small btn-yellow" style='background:#E5FFCC;' onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
-          <button class="btn btn-small btn-danger" style='background:#E5FFCC;' onclick="deleteTask('${task.id}')">删除任务</button>
+          <button class="btn btn-small btn-yellow" style='background:#E5FFCC;' onclick="deleteTask('${task.id}')">删除任务</button>
           <button class="btn btn-small btn-yellow" style='background:#E5FFCC;' onclick="restoreTask('${task.id}')">复原全部子任务</button>
         `;
         function renderSubtasks(ul, subs, level, parentTaskId) {
@@ -670,44 +670,57 @@
           <button class='btn btn-small btn-danger' style='background:#E5FFCC;' onclick="deleteHabit('${habit.id}')">删除习惯</button>
         `;
         card.appendChild(controls);
-        const today = new Date();
+        const year = new Date().getFullYear();
+        let start = new Date(year,0,1);
+        while(start.getDay()!==1) start.setDate(start.getDate()-1);
         let days = [];
-        let start = new Date(today.getFullYear(),0,1);
-        for (let i=0;i<365;i++) {
+        for(let i=0;i<53*7;i++) {
           let d = new Date(start.getTime()+i*24*3600*1000);
-          if (d>today) break;
-          days.push(d.toISOString().slice(0,10));
+          if (d.getFullYear()>year || (d.getFullYear()===year+1 && d.getMonth()===0 && d.getDate()>7)) break;
+          days.push(d);
         }
-        while (days.length<14*26) days.push('');
         const heatmap = document.createElement('div');
         heatmap.className = 'heatmap';
         heatmap.style.display = 'grid';
-        heatmap.style.gridTemplateColumns = 'repeat(26, 10px)';
-        heatmap.style.gridTemplateRows = 'repeat(14, 10px)';
-        for (let row=0;row<14;row++) {
-          for (let col=0;col<26;col++) {
-            let idx = col*14+row;
-            let dateStr = days[idx];
-            const dayDiv = document.createElement('div');
-            dayDiv.className = 'heatmap-day'+(dateStr&&habit.days[dateStr]?' done':'');
-            dayDiv.title = dateStr||'';
-            if (dateStr) dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
-            heatmap.appendChild(dayDiv);
-          }
-          if (row===6) {
-            const sep = document.createElement('div');
-            sep.style.gridColumn = '1 / span 26';
-            sep.style.height = '2px';
-            sep.style.background = '#bbb';
-            sep.style.margin = '2px 0';
-            sep.style.gridRow = (row+1);
-            heatmap.appendChild(sep);
-          }
+        heatmap.style.gridTemplateColumns = `repeat(${Math.ceil(days.length/7)}, 12px)`;
+        heatmap.style.gridTemplateRows = 'repeat(7, 12px)';
+        let monthCols = {};
+        for(let i=0;i<days.length;i++) {
+          let d = days[i];
+          let week = Math.floor(i/7), day = i%7;
+          let dateStr = d.toISOString().slice(0,10);
+          if (d.getFullYear()!==year) continue;
+          if (d.getDate()===1) monthCols[d.getMonth()] = week;
+          const dayDiv = document.createElement('div');
+          dayDiv.className = 'heatmap-day'+(habit.days[dateStr]?' done':'');
+          dayDiv.title = dateStr;
+          dayDiv.style.gridColumn = (week+1);
+          dayDiv.style.gridRow = (day+1);
+          if (dateStr) dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
+          heatmap.appendChild(dayDiv);
         }
+        Object.entries(monthCols).forEach(([month, col])=>{
+          const label = document.createElement('div');
+          label.className = 'heatmap-month';
+          label.style.left = `${col*14}px`;
+          label.innerText = `${parseInt(month)+1}月`;
+          label.style.top = '-18px';
+          label.style.position = 'absolute';
+          heatmap.appendChild(label);
+          const divider = document.createElement('div');
+          divider.className = 'heatmap-divider';
+          divider.style.left = `${col*14}px`;
+          divider.style.top = '0';
+          divider.style.height = '100%';
+          divider.style.width = '2px';
+          divider.style.background = '#bdbdbd';
+          divider.style.position = 'absolute';
+          heatmap.appendChild(divider);
+        });
         card.appendChild(heatmap);
         const labels = document.createElement('div');
         labels.className = 'heatmap-labels';
-        labels.innerHTML = '<span>1月</span><span>12月</span>';
+        labels.innerHTML = '<span>周一</span><span>周日</span>';
         card.appendChild(labels);
         board.appendChild(card);
       });
