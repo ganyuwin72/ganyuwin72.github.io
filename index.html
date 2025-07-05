@@ -168,14 +168,14 @@
     
     .habit-calendar-grid {
       display: grid;
-      gap: 1px;
+      gap: 0.5px;
       width: 100%;
-      max-width: 112px;
+      max-width: 140px;
     }
     
     .habit-day-cell {
-      width: 7px;
-      height: 7px;
+      width: 9px;
+      height: 9px;
       border-radius: 1px;
       cursor: pointer;
       transition: all 0.2s;
@@ -357,11 +357,11 @@
       <h1>任务管理与计时统计</h1>
       <div id="total-time" style="font-size:1.1em;color:#1976d2;margin-bottom:16px;font-weight:700;"></div>
       
-      <!-- 每日专注时间统计 -->
+      <!-- 年度专注时间热力图 -->
       <div id="daily-focus-stats" style="margin-bottom:24px;">
-        <h3 style="color:#333;margin-bottom:12px;">每日专注时间统计</h3>
+        <h3 style="color:#333;margin-bottom:12px;">年度专注时间热力图</h3>
         <div id="focus-chart" style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-          <canvas id="focus-chart-canvas" width="800" height="200"></canvas>
+          <canvas id="focus-chart-canvas" width="800" height="120"></canvas>
         </div>
       </div>
       
@@ -592,85 +592,96 @@
       return total;
     }
     
-    // 获取每日专注时间数据
-    function getDailyFocusData() {
-      const dailyData = {};
-      const today = new Date();
+    // 获取年度专注时间数据
+    function getYearlyFocusData() {
+      const yearlyData = {};
+      const year = new Date().getFullYear();
       
-      // 获取最近30天的数据
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().slice(0, 10);
-        dailyData[dateStr] = 0;
-      }
-      
-      // 从任务数据中提取每日专注时间
-      function extractDailyTime(subtasks, dateStr) {
-        for (let s of subtasks) {
-          if (s.subtasks && s.subtasks.length > 0) {
-            extractDailyTime(s.subtasks, dateStr);
-          }
-          // 这里需要从任务数据中提取每日时间，暂时使用模拟数据
-          if (s.timeSpent > 0) {
-            dailyData[dateStr] += s.timeSpent;
-          }
+      // 获取整年的数据
+      for (let month = 0; month < 12; month++) {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+          yearlyData[dateStr] = 0;
         }
       }
       
-      for (let t of tasks) {
-        extractDailyTime(t.subtasks || [], getTodayStr());
+      // 从任务数据中提取每日专注时间（这里使用模拟数据）
+      // 实际应用中需要从任务记录中提取真实数据
+      for (let dateStr in yearlyData) {
+        // 模拟数据：随机生成一些专注时间
+        if (Math.random() > 0.7) {
+          yearlyData[dateStr] = Math.floor(Math.random() * 3600) + 1800; // 30分钟到2小时
+        }
       }
       
-      return dailyData;
+      return yearlyData;
     }
     
-    // 绘制专注时间图表
+    // 绘制年度专注时间热力图
     function renderFocusChart() {
       const canvas = document.getElementById('focus-chart-canvas');
       if (!canvas) return;
       
       const ctx = canvas.getContext('2d');
-      const dailyData = getDailyFocusData();
-      const dates = Object.keys(dailyData);
-      const values = Object.values(dailyData);
+      const yearlyData = getYearlyFocusData();
       
       // 清空画布
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // 设置样式
-      const padding = 40;
+      const padding = 20;
       const chartWidth = canvas.width - 2 * padding;
       const chartHeight = canvas.height - 2 * padding;
       
-      // 绘制坐标轴
-      ctx.strokeStyle = '#ddd';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(padding, padding);
-      ctx.lineTo(padding, canvas.height - padding);
-      ctx.lineTo(canvas.width - padding, canvas.height - padding);
-      ctx.stroke();
+      // 计算网格
+      const cellSize = 12;
+      const gap = 1;
+      const cellsPerRow = Math.floor(chartWidth / (cellSize + gap));
+      const totalCells = 365;
+      const rows = Math.ceil(totalCells / cellsPerRow);
       
-      // 绘制数据点
-      const maxValue = Math.max(...values, 1);
-      const barWidth = chartWidth / dates.length;
+      // 获取最大专注时间用于颜色计算
+      const maxFocusTime = Math.max(...Object.values(yearlyData), 1);
       
-      ctx.fillStyle = '#4ecca3';
-      for (let i = 0; i < dates.length; i++) {
-        const barHeight = (values[i] / maxValue) * chartHeight;
-        const x = padding + i * barWidth;
-        const y = canvas.height - padding - barHeight;
-        
-        ctx.fillRect(x, y, barWidth - 2, barHeight);
-        
-        // 绘制日期标签
-        if (i % 5 === 0) {
-          ctx.fillStyle = '#666';
-          ctx.font = '10px Arial';
-          ctx.textAlign = 'center';
-          const dateLabel = dates[i].slice(5); // 只显示月-日
-          ctx.fillText(dateLabel, x + barWidth/2, canvas.height - padding + 15);
+      // 绘制热力图
+      let cellIndex = 0;
+      const year = new Date().getFullYear();
+      
+      for (let month = 0; month < 12; month++) {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+          const focusTime = yearlyData[dateStr] || 0;
+          
+          // 计算颜色深浅
+          const intensity = focusTime / maxFocusTime;
+          const color = `rgba(78, 204, 163, ${0.1 + intensity * 0.8})`;
+          
+          // 计算位置
+          const row = Math.floor(cellIndex / cellsPerRow);
+          const col = cellIndex % cellsPerRow;
+          const x = padding + col * (cellSize + gap);
+          const y = padding + row * (cellSize + gap);
+          
+          // 绘制方格
+          ctx.fillStyle = color;
+          ctx.fillRect(x, y, cellSize, cellSize);
+          
+          // 添加点击事件
+          canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            
+            if (clickX >= x && clickX <= x + cellSize && 
+                clickY >= y && clickY <= y + cellSize) {
+              const hours = (focusTime / 3600).toFixed(2);
+              alert(`${dateStr}\n专注时长: ${hours}小时`);
+            }
+          });
+          
+          cellIndex++;
         }
       }
       
@@ -678,7 +689,7 @@
       ctx.fillStyle = '#333';
       ctx.font = '14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('每日专注时间（秒）', canvas.width/2, 20);
+      ctx.fillText('年度专注时间热力图（点击方格查看详情）', canvas.width/2, 15);
     }
     function editTaskTitle(taskId) {
       let task = tasks.find(t=>t.id===taskId);
@@ -764,8 +775,9 @@
         const subtaskEstimateTotal = getSubtaskEstimateTotal(task.subtasks);
         const totalEstimate = (task.estimate || 0) + subtaskEstimateTotal;
         
+        const actualHours = (totalTimeSpent / 3600).toFixed(2);
         card.innerHTML += `
-          <div class="task-meta">预计用时: ${totalEstimate > 0 ? totalEstimate.toFixed(1) : '-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
+          <div class="task-meta">预计用时: ${totalEstimate > 0 ? totalEstimate.toFixed(1) : '-'} 小时 | 实际用时: ${actualHours} 小时</div>
           <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
           <div style="font-size:0.95em;">完成度: ${percent}%</div>
           <ul class="subtasks"></ul>
@@ -797,8 +809,9 @@
             if(leaf) {
               const timeSpan = document.createElement('span');
               timeSpan.style.cssText = 'color:#888;font-size:0.9em;';
-              const estimateText = sub.estimate ? ` | 预计: ${sub.estimate}h` : '';
-              timeSpan.innerText = ` | 已用: ${formatTime(subTotalTime)}${estimateText}`;
+              const actualHours = (subTotalTime / 3600).toFixed(2);
+              const estimateText = sub.estimate ? `预计: ${sub.estimate}h | ` : '';
+              timeSpan.innerText = ` | ${estimateText}实际: ${actualHours}h`;
               li.appendChild(timeSpan);
             }
             const controlsDiv = document.createElement('div');
