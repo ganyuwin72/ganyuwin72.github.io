@@ -147,8 +147,8 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       grid-template-rows: repeat(3, auto);
-      gap: 10px;
-      margin-top: 12px;
+      gap: 8px;
+      margin-top: 10px;
     }
     
     .habit-month-item {
@@ -160,8 +160,8 @@
     
     .habit-month-title {
       font-weight: bold;
-      font-size: 0.8em;
-      margin-bottom: 4px;
+      font-size: 0.75em;
+      margin-bottom: 3px;
       text-align: center;
       color: #555;
     }
@@ -170,12 +170,12 @@
       display: grid;
       gap: 1px;
       width: 100%;
-      max-width: 120px;
+      max-width: 100px;
     }
     
     .habit-day-cell {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 1px;
       cursor: pointer;
       transition: all 0.2s;
@@ -199,21 +199,24 @@
     .habit-board {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
+      gap: 20px;
       justify-content: center;
       margin-top: 16px;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .habit-card {
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-      padding: 20px;
+      padding: 16px;
       width: 100%;
-      min-width: 280px;
-      max-width: 100%;
+      min-width: 240px;
+      max-width: 320px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       cursor: grab;
       user-select: none;
       transition: box-shadow 0.2s ease;
