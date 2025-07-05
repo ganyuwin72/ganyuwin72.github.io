@@ -430,6 +430,21 @@
           <button class="btn btn-small" onclick="stopTimerModal(false)">取消</button>
         </div>
       </div>
+      
+      <!-- 手动添加时长弹窗 -->
+      <div id="manual-time-modal" class="modal" style="display:none;z-index:5000;">
+        <div class="modal-content" style="min-width:280px;text-align:center;">
+          <h3>手动添加专注时长</h3>
+          <div style="margin:16px 0;">
+            <label style="display:block;margin-bottom:8px;">小时：</label>
+            <input id="manual-hours" type="number" min="0" step="0.1" style="width:80px;margin-right:8px;" placeholder="0" onkeydown="if(event.key==='Enter'){confirmManualTime();}">
+            <label style="display:inline-block;margin-left:8px;">分钟：</label>
+            <input id="manual-minutes" type="number" min="0" max="59" style="width:80px;margin-left:8px;" placeholder="0" onkeydown="if(event.key==='Enter'){confirmManualTime();}">
+          </div>
+          <button class="btn" onclick="confirmManualTime()">确认添加</button>
+          <button class="btn btn-small" onclick="hideManualTimeModal()">取消</button>
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -441,6 +456,7 @@
     let dragInfo = { type: null, from: null, to: null, parent: null };
     let timerRenderInterval = null;
     let timerModalTaskId = null, timerModalSubId = null, timerModalInterval = null, timerModalSeconds = 0;
+    let manualTimeTaskId = null, manualTimeSubId = null;
 
     function saveTasks() { localStorage.setItem('tasks', JSON.stringify(tasks)); }
     function saveHabits() { localStorage.setItem('habits', JSON.stringify(habits)); }
@@ -902,6 +918,7 @@
               (level<3?`<button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:'')+
               (leaf?`
                 <button class='btn btn-small btn-yellow' style='background:#43a047;' onclick="showTimerModal('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>计时</button>
+                <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="addManualTime('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>添加时长</button>
                 <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
                 <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="restoreSubtask('${task.id}','${sub.id}')" ${!sub.done?'disabled':''}>复原</button>
                 <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="deleteSubtask('${task.id}','${sub.id}')">删除</button>
@@ -1160,6 +1177,51 @@
       timerModalTaskId = null;
       timerModalSubId = null;
       timerModalSeconds = 0;
+    }
+    
+    // 显示手动添加时长弹窗
+    function addManualTime(taskId, subId) {
+      manualTimeTaskId = taskId;
+      manualTimeSubId = subId;
+      document.getElementById('manual-time-modal').style.display = 'flex';
+      document.getElementById('manual-hours').value = '';
+      document.getElementById('manual-minutes').value = '';
+      setTimeout(() => {
+        document.getElementById('manual-hours').focus();
+      }, 100);
+    }
+    
+    // 隐藏手动添加时长弹窗
+    function hideManualTimeModal() {
+      document.getElementById('manual-time-modal').style.display = 'none';
+      manualTimeTaskId = null;
+      manualTimeSubId = null;
+    }
+    
+    // 确认添加手动时长
+    function confirmManualTime() {
+      const hours = parseFloat(document.getElementById('manual-hours').value) || 0;
+      const minutes = parseInt(document.getElementById('manual-minutes').value) || 0;
+      
+      if (hours === 0 && minutes === 0) {
+        alert('请输入有效的时长');
+        return;
+      }
+      
+      const totalSeconds = hours * 3600 + minutes * 60;
+      
+      if (manualTimeTaskId && manualTimeSubId) {
+        let task = tasks.find(t=>t.id===manualTimeTaskId);
+        let sub = findSubtaskById(task.subtasks, manualTimeSubId);
+        sub.timeSpent = (sub.timeSpent||0) + totalSeconds;
+        saveTasks();
+        renderTasks();
+        hideManualTimeModal();
+        
+        // 显示添加成功提示
+        const totalHours = (totalSeconds / 3600).toFixed(2);
+        alert(`已成功添加 ${totalHours} 小时专注时长`);
+      }
     }
     function deleteTask(taskId) {
       tasks = tasks.filter(t=>t.id!==taskId);
