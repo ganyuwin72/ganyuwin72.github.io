@@ -147,8 +147,8 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       grid-template-rows: repeat(3, auto);
-      gap: 6px;
-      margin-top: 8px;
+      gap: 4px;
+      margin-top: 6px;
     }
     
     .habit-month-item {
@@ -775,11 +775,11 @@
           const monthDiv = document.createElement('div');
           monthDiv.className = 'habit-month-item';
           
-          // 月份标题
-          const monthTitle = document.createElement('div');
-          monthTitle.className = 'habit-month-title';
-          monthTitle.innerText = `${month+1}月`;
-          monthDiv.appendChild(monthTitle);
+          // 月份标题 - 已移除文字显示
+          // const monthTitle = document.createElement('div');
+          // monthTitle.className = 'habit-month-title';
+          // monthTitle.innerText = `${month+1}月`;
+          // monthDiv.appendChild(monthTitle);
           
           // 创建该月的日历网格
           const daysInMonth = new Date(year, month+1, 0).getDate();
