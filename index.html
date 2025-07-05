@@ -337,8 +337,8 @@
       border-radius: 6px;
       border: 1px solid #ccc;
     }
-    .btn-edit { background: #888 !important; color: #fff !important; }
-    .btn-yellow { background: #B0E0E6 !important; color: #fff !important; }
+    .btn-edit { background: #DCDCDC !important; color: #fff !important; }
+    .btn-yellow { background: #B4EEB4 !important; color: #fff !important; }
     
     /* 响应式设计 */
     @media (max-width: 1200px) {
@@ -942,7 +942,6 @@
           <ul class="subtasks"></ul>
           <button class="btn btn-small btn-yellow" style='background:#E5FFCC;' onclick="addSubtask('${task.id}',null,1)">+ 添加一级子任务</button>
           <button class="btn btn-small btn-yellow" style='background:#E5FFCC;' onclick="deleteTask('${task.id}')">删除任务</button>
-          <button class="btn btn-small btn-yellow" style='background:#E5FFCC;' onclick="restoreTask('${task.id}')">复原全部子任务</button>
         `;
         function renderSubtasks(ul, subs, level, parentTaskId) {
           subs.forEach((sub, subIdx) => {
