@@ -154,20 +154,19 @@
       margin-bottom: 4px;
     }
     .habit-board {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 24px;
-      justify-content: flex-start;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      justify-content: center;
     }
     .habit-card {
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
       padding: 20px;
-      width: 320px;
-      min-width: 260px;
+      width: 100%;
+      min-width: 280px;
       max-width: 100%;
-      margin: 0 12px 24px 12px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -271,7 +270,22 @@
       border: 1px solid #ccc;
     }
     .btn-edit { background: #888 !important; color: #fff !important; }
-    .btn-yellow { background: ##98FB98 !important; color: #fff !important; }
+    .btn-yellow { background: #98FB98 !important; color: #fff !important; }
+    
+    /* 响应式设计 */
+    @media (max-width: 1200px) {
+      .habit-board {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 768px) {
+      .habit-board {
+        grid-template-columns: 1fr;
+      }
+      .habit-card {
+        min-width: auto;
+      }
+    }
   </style>
 </head>
 <body>
