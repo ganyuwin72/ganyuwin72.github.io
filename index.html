@@ -670,58 +670,73 @@
           <button class='btn btn-small btn-danger' style='background:#E5FFCC;' onclick="deleteHabit('${habit.id}')">删除习惯</button>
         `;
         card.appendChild(controls);
+        // 统计总打卡天数和最长连续打卡天数
+        const allDays = Object.keys(habit.days).filter(d=>habit.days[d]);
+        const totalDays = allDays.length;
+        // 计算最长连续打卡天数
+        let streak = 0, maxStreak = 0;
+        let prev = null;
+        const sortedDays = allDays.sort();
+        for(let i=0;i<sortedDays.length;i++){
+          if(i===0){ streak=1; maxStreak=1; prev=sortedDays[0]; continue; }
+          let prevDate = new Date(prev);
+          let currDate = new Date(sortedDays[i]);
+          prevDate.setDate(prevDate.getDate()+1);
+          if(prevDate.toISOString().slice(0,10)===sortedDays[i]){
+            streak++;
+          }else{
+            streak=1;
+          }
+          if(streak>maxStreak) maxStreak=streak;
+          prev=sortedDays[i];
+        }
+        const statDiv = document.createElement('div');
+        statDiv.style.cssText = 'font-size:0.98em;color:#1976d2;margin-bottom:4px;';
+        statDiv.innerText = `已打卡天数: ${totalDays} | 最长连续: ${maxStreak} 天`;
+        card.appendChild(statDiv);
+        // 12个月热力图
         const year = new Date().getFullYear();
-        let start = new Date(year,0,1);
-        while(start.getDay()!==1) start.setDate(start.getDate()-1);
-        let days = [];
-        for(let i=0;i<53*7;i++) {
-          let d = new Date(start.getTime()+i*24*3600*1000);
-          if (d.getFullYear()>year || (d.getFullYear()===year+1 && d.getMonth()===0 && d.getDate()>7)) break;
-          days.push(d);
+        for(let month=0;month<12;month++){
+          const monthDiv = document.createElement('div');
+          monthDiv.style.marginBottom = '8px';
+          const monthTitle = document.createElement('div');
+          monthTitle.style.fontWeight = 'bold';
+          monthTitle.style.marginBottom = '2px';
+          monthTitle.innerText = `${month+1}月`;
+          monthDiv.appendChild(monthTitle);
+          // 该月天数
+          const daysInMonth = new Date(year, month+1, 0).getDate();
+          // 该月第一天是周几
+          const firstDay = new Date(year, month, 1).getDay();
+          // 生成天格子
+          const grid = document.createElement('div');
+          grid.style.display = 'grid';
+          grid.style.gridTemplateColumns = `repeat(${Math.ceil((daysInMonth+((firstDay+6)%7))/7)}, 14px)`;
+          grid.style.gridTemplateRows = 'repeat(7, 14px)';
+          grid.style.gap = '1px';
+          grid.style.marginBottom = '2px';
+          grid.style.position = 'relative';
+          // 补齐前面的空格
+          let emptyDays = (firstDay+6)%7; // 以周一为第一列
+          for(let i=0;i<emptyDays;i++){
+            const empty = document.createElement('div');
+            empty.style.width = '14px';
+            empty.style.height = '14px';
+            grid.appendChild(empty);
+          }
+          for(let d=1;d<=daysInMonth;d++){
+            const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'heatmap-day'+(habit.days[dateStr]?' done':'');
+            dayDiv.title = dateStr;
+            dayDiv.style.width = '14px';
+            dayDiv.style.height = '14px';
+            dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
+            grid.appendChild(dayDiv);
+          }
+          monthDiv.appendChild(grid);
+          card.appendChild(monthDiv);
         }
-        const heatmap = document.createElement('div');
-        heatmap.className = 'heatmap';
-        heatmap.style.display = 'grid';
-        heatmap.style.gridTemplateColumns = `repeat(${Math.ceil(days.length/7)}, 12px)`;
-        heatmap.style.gridTemplateRows = 'repeat(7, 12px)';
-        let monthCols = {};
-        for(let i=0;i<days.length;i++) {
-          let d = days[i];
-          let week = Math.floor(i/7), day = i%7;
-          let dateStr = d.toISOString().slice(0,10);
-          if (d.getFullYear()!==year) continue;
-          if (d.getDate()===1) monthCols[d.getMonth()] = week;
-          const dayDiv = document.createElement('div');
-          dayDiv.className = 'heatmap-day'+(habit.days[dateStr]?' done':'');
-          dayDiv.title = dateStr;
-          dayDiv.style.gridColumn = (week+1);
-          dayDiv.style.gridRow = (day+1);
-          if (dateStr) dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
-          heatmap.appendChild(dayDiv);
-        }
-        Object.entries(monthCols).forEach(([month, col])=>{
-          const label = document.createElement('div');
-          label.className = 'heatmap-month';
-          label.style.left = `${col*14}px`;
-          label.innerText = `${parseInt(month)+1}月`;
-          label.style.top = '-18px';
-          label.style.position = 'absolute';
-          heatmap.appendChild(label);
-          const divider = document.createElement('div');
-          divider.className = 'heatmap-divider';
-          divider.style.left = `${col*14}px`;
-          divider.style.top = '0';
-          divider.style.height = '100%';
-          divider.style.width = '2px';
-          divider.style.background = '#bdbdbd';
-          divider.style.position = 'absolute';
-          heatmap.appendChild(divider);
-        });
-        card.appendChild(heatmap);
-        const labels = document.createElement('div');
-        labels.className = 'heatmap-labels';
-        labels.innerHTML = '<span>周一</span><span>周日</span>';
-        card.appendChild(labels);
         board.appendChild(card);
       });
       ensureTimerRender();
