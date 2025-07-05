@@ -199,10 +199,10 @@
     .habit-board {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
+      gap: 20px;
       justify-content: center;
       margin-top: 12px;
-      max-width: 750px;
+      max-width: 800px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -213,7 +213,7 @@
       padding: 12px;
       width: 100%;
       min-width: 180px;
-      max-width: 240px;
+      max-width: 220px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -321,20 +321,24 @@
       border: 1px solid #ccc;
     }
     .btn-edit { background: #888 !important; color: #fff !important; }
-    .btn-yellow { background: #98FB98 !important; color: #fff !important; }
+    .btn-yellow { background: #8FBC8F !important; color: #fff !important; }
     
     /* 响应式设计 */
     @media (max-width: 1200px) {
       .habit-board {
         grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
       }
     }
     @media (max-width: 768px) {
       .habit-board {
         grid-template-columns: 1fr;
+        gap: 16px;
+        max-width: 400px;
       }
       .habit-card {
         min-width: auto;
+        max-width: 100%;
       }
     }
   </style>
