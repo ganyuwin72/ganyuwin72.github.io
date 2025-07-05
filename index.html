@@ -889,9 +889,9 @@
             const li = document.createElement('li');
             li.className = `subtask subtask-level-${level}` + (sub.done ? ' completed' : '');
             li.setAttribute('draggable','true');
-            li.ondragstart = e=>subtaskDragStart(e, subIdx, subs);
+            li.ondragstart = e=>subtaskDragStart(e, subIdx, task.subtasks);
             li.ondragover = e=>subtaskDragOver(e, subIdx);
-            li.ondrop = e=>subtaskDrop(e, subIdx, subs);
+            li.ondrop = e=>subtaskDrop(e, subIdx, task.subtasks);
             li.ondragend = ()=>li.classList.remove('dragging');
             li.ondragenter = e=>e.preventDefault();
             li.ondragleave = e=>e.preventDefault();
@@ -1082,6 +1082,7 @@
       dragInfo = { type: null, from: null, to: null };
     }
     function subtaskDragStart(e, idx, parentSubs) {
+      console.log('Subtask drag start:', idx, parentSubs); // 调试信息
       dragInfo = { type: 'subtask', from: idx, to: null, parent: parentSubs };
       e.currentTarget.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
@@ -1094,6 +1095,7 @@
     }
     function subtaskDrop(e, idx, parentSubs) {
       e.preventDefault();
+      console.log('Subtask drop:', dragInfo, idx, parentSubs); // 调试信息
       if (dragInfo.type==='subtask' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to && dragInfo.parent===parentSubs) {
         const moved = parentSubs.splice(dragInfo.from,1)[0];
         parentSubs.splice(dragInfo.to,0,moved);
@@ -1317,6 +1319,26 @@
         showPasswordModal();
       }
     }
-  </script>
-</body>
+      function showFocusDetail(date, hours) {
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <h3>专注时间详情</h3>
+          <p>日期: ${date}</p>
+          <p>专注时长: ${hours.toFixed(2)} 小时</p>
+          <button onclick="this.closest('.modal').remove()">确认</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      // 点击模态框背景也可以关闭
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    }
+    </script>
+  </body>
 </html>
