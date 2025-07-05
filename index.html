@@ -364,20 +364,24 @@
       gap: 20px;
       padding: 20px;
     }
-    .subtask-toggle {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      color: #4CAF50;
-      font-weight: bold;
-      z-index: 2;
-      background: none;
-      border: none;
-      outline: none;
-    }
-    li.subtask { position: relative; }
+          .subtask-toggle {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #4CAF50;
+        font-weight: bold;
+        z-index: 2;
+        background: none;
+        border: none;
+        outline: none;
+        font-size: 12px;
+      }
+      li.subtask { 
+        position: relative; 
+        padding-right: 30px;
+      }
   </style>
 </head>
 <body>
@@ -955,12 +959,19 @@
             li.ondragenter = e=>e.preventDefault();
             li.ondragleave = e=>e.preventDefault();
             
-            // 添加点击事件用于缩放子任务
-            li.onclick = e => {
-              if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SPAN') {
-                toggleSubtaskCollapse(sub, li);
-              }
-            };
+            // 添加三角形缩放按钮
+            let hasChildren = sub.subtasks && sub.subtasks.length > 0 && level < 3;
+            if (hasChildren) {
+              const toggleBtn = document.createElement('span');
+              toggleBtn.className = 'subtask-toggle';
+              toggleBtn.innerHTML = sub.collapsed ? '▶' : '▼';
+              toggleBtn.onclick = e => {
+                e.stopPropagation();
+                sub.collapsed = !sub.collapsed;
+                renderTasks();
+              };
+              li.appendChild(toggleBtn);
+            }
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
             let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
             const nameSpan = document.createElement('span');
@@ -1398,7 +1409,7 @@
           <h3>专注时间详情</h3>
           <p>日期: ${date}</p>
           <p>专注时长: ${hours.toFixed(2)} 小时</p>
-          <button onclick="closeFocusModal()">确认</button>
+          <button onclick="this.closest('.modal').remove()">确认</button>
         </div>
       `;
       document.body.appendChild(modal);
@@ -1406,9 +1417,18 @@
       // 点击模态框背景也可以关闭
       modal.addEventListener('click', function(e) {
         if (e.target === modal) {
-          closeFocusModal();
+          modal.remove();
         }
       });
+      
+      // 添加ESC键关闭功能
+      const handleEsc = function(e) {
+        if (e.key === 'Escape') {
+          modal.remove();
+          document.removeEventListener('keydown', handleEsc);
+        }
+      };
+      document.addEventListener('keydown', handleEsc);
     }
     
     function closeFocusModal() {
@@ -1416,6 +1436,50 @@
       if (modal) {
         modal.remove();
       }
+    }
+    
+    // 修复addSubtask函数，移除级别限制
+    function addSubtask(taskId, parentId, level) {
+      const name = prompt('请输入子任务名称:');
+      if (!name) return;
+      
+      const newSubtask = {
+        id: Date.now().toString(),
+        name: name,
+        done: false,
+        timeSpent: 0,
+        estimate: 0,
+        subtasks: []
+      };
+      
+      if (parentId) {
+        // 添加到指定的父任务
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          const addToSubtask = (subtasks, parentId) => {
+            for (let sub of subtasks) {
+              if (sub.id === parentId) {
+                sub.subtasks.push(newSubtask);
+                return true;
+              }
+              if (sub.subtasks && sub.subtasks.length > 0) {
+                if (addToSubtask(sub.subtasks, parentId)) return true;
+              }
+            }
+            return false;
+          };
+          addToSubtask(task.subtasks, parentId);
+        }
+      } else {
+        // 添加到主任务
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          task.subtasks.push(newSubtask);
+        }
+      }
+      
+      saveTasks();
+      renderTasks();
     }
     
     // 子任务缩放功能
