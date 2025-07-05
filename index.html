@@ -376,7 +376,6 @@
       
       <!-- 年度专注时间热力图 -->
       <div id="daily-focus-stats" style="margin-bottom:24px;">
-        <h3 style="color:#333;margin-bottom:12px;">年度专注时间热力图</h3>
         <div id="focus-chart" style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
           <div id="focus-stats" style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:0.95em;color:#1976d2;font-weight:700;">
             <span>累计专注: <span id="total-focus">0</span>h</span>
@@ -384,12 +383,13 @@
             <span>本月专注: <span id="month-focus">0</span>h</span>
             <span>今日专注: <span id="today-focus">0</span>h</span>
           </div>
-          <canvas id="focus-chart-canvas" width="800" height="120" style="width:100%;height:auto;"></canvas>
+          <canvas id="focus-chart-canvas" width="800" height="80" style="width:100%;height:auto;"></canvas>
         </div>
       </div>
       
       <button class="btn add-task-btn" onclick="showTaskForm()">+ 新建任务</button>
       <div id="task-board" class="task-board"></div>
+      <h2 style="margin-top:40px;"> </h2>
       <button class="btn add-task-btn" style="margin-bottom:16px;" onclick="showHabitForm()">+ 新建习惯</button>
       <div id="habit-board" class="habit-board"></div>
       <!-- 任务表单弹窗 -->
@@ -696,10 +696,10 @@
       todayFocus = yearlyData[todayStr] || 0;
       
       return {
-        total: (totalFocus / 3600).toFixed(1),
-        year: (yearFocus / 3600).toFixed(1),
-        month: (monthFocus / 3600).toFixed(1),
-        today: (todayFocus / 3600).toFixed(1)
+        total: (totalFocus / 3600).toFixed(2),
+        year: (yearFocus / 3600).toFixed(2),
+        month: (monthFocus / 3600).toFixed(2),
+        today: (todayFocus / 3600).toFixed(2)
       };
     }
     
@@ -727,12 +727,12 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // 设置样式
-      const padding = 20;
+      const padding = 15;
       const chartWidth = canvas.width - 2 * padding;
       const chartHeight = canvas.height - 2 * padding;
       
       // 计算网格
-      const cellSize = 14;
+      const cellSize = 12;
       const gap = 1;
       const cellsPerRow = Math.floor(chartWidth / (cellSize + gap));
       const totalCells = 365;
@@ -784,9 +784,8 @@
       
       // 绘制标题
       ctx.fillStyle = '#333';
-      ctx.font = 'bold 14px Arial';
+      ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('年度专注时间热力图（点击方格查看详情）', canvas.width/2, 15);
     }
     function editTaskTitle(taskId) {
       let task = tasks.find(t=>t.id===taskId);
@@ -819,7 +818,6 @@
     function renderTasks() {
       tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
       const totalTime = getAllTasksTotalTime();
-      document.getElementById('total-time').innerText = '所有任务累计用时：' + formatTime(totalTime);
       const board = document.getElementById('task-board');
       board.innerHTML = '';
       tasks.forEach((task, idx) => {
@@ -854,6 +852,7 @@
         const editBtn = document.createElement('button');
         editBtn.className = 'btn btn-small btn-edit';
         editBtn.style.marginLeft = '8px';
+        editBtn.style.background = '#D3D3D3';
         editBtn.innerText = '编辑';
         editBtn.onclick = ()=>editTaskTitle(task.id);
         titleDiv.appendChild(editBtn);
@@ -899,6 +898,7 @@
             const subEditBtn = document.createElement('button');
             subEditBtn.className = 'btn btn-small btn-edit';
             subEditBtn.style.marginLeft = '6px';
+            editBtn.style.background = '#D3D3D3';
             subEditBtn.innerText = '编辑';
             subEditBtn.onclick = ()=>editSubtaskTitle(task.id, sub.id);
             nameSpan.appendChild(subEditBtn);
@@ -917,7 +917,7 @@
               (level<3?`<button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="addSubtask('${task.id}','${sub.id}',${level+1})">+ 子任务</button>`:'')+
               (leaf?`
                 <button class='btn btn-small' style='background:#43a047;' onclick="showTimerModal('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>计时</button>
-                <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="addManualTime('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>添加时长</button>
+                <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="addManualTime('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>添加</button>
                 <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="markDone('${task.id}','${sub.id}')" ${sub.done?'disabled':''}>完成</button>
                 <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="restoreSubtask('${task.id}','${sub.id}')" ${!sub.done?'disabled':''}>复原</button>
                 <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="deleteSubtask('${task.id}','${sub.id}')">删除</button>
@@ -956,6 +956,7 @@
         const editBtn = document.createElement('button');
         editBtn.className = 'btn btn-small btn-edit';
         editBtn.style.marginLeft = '8px';
+        editBtn.style.background = '#D3D3D3';
         editBtn.innerText = '编辑';
         editBtn.onclick = ()=>editHabitTitle(habit.id);
         labelDiv.appendChild(editBtn);
@@ -965,7 +966,7 @@
         controls.innerHTML = `
           <button class='btn btn-small btn-yellow' style='background:#43a047;' onclick="toggleHabitDone('${habit.id}','${getTodayStr()}')">今日打卡</button>
           <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="showDateModal('${habit.id}')">补录打卡</button>
-          <button class='btn btn-small btn-danger' style='background:#E5FFCC;' onclick="deleteHabit('${habit.id}')">删除习惯</button>
+          <button class='btn btn-small btn-yellow' style='background:#E5FFCC;' onclick="deleteHabit('${habit.id}')">删除习惯</button>
         `;
         card.appendChild(controls);
         // 统计总打卡天数和最长连续打卡天数
