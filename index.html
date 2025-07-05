@@ -358,6 +358,12 @@
         max-width: 100%;
       }
     }
+    #task-board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      padding: 20px;
+    }
   </style>
 </head>
 <body>
@@ -815,6 +821,18 @@
         renderHabits();
       }
     }
+    // 添加任务面板的CSS样式
+    const style = document.createElement('style');
+    style.textContent = `
+      #task-board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        padding: 20px;
+      }
+    `;
+    document.head.appendChild(style);
+    
     function renderTasks() {
       tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
       const totalTime = getAllTasksTotalTime();
