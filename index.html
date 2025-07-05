@@ -184,6 +184,23 @@
     .habit-day-cell:hover {
       transform: scale(1.2);
     }
+    
+    /* 专注时间热力图样式 */
+    #focus-chart {
+      transition: box-shadow 0.2s ease;
+    }
+    
+    #focus-chart:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    #focus-stats span {
+      transition: color 0.2s ease;
+    }
+    
+    #focus-stats span:hover {
+      color: #2b7a78;
+    }
     .heatmap-labels {
       display: flex;
       justify-content: space-between;
@@ -360,8 +377,14 @@
       <!-- 年度专注时间热力图 -->
       <div id="daily-focus-stats" style="margin-bottom:24px;">
         <h3 style="color:#333;margin-bottom:12px;">年度专注时间热力图</h3>
-        <div id="focus-chart" style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-          <canvas id="focus-chart-canvas" width="800" height="120"></canvas>
+        <div id="focus-chart" style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+          <div id="focus-stats" style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:0.95em;color:#1976d2;font-weight:700;">
+            <span>累计专注: <span id="total-focus">0</span>h</span>
+            <span>今年专注: <span id="year-focus">0</span>h</span>
+            <span>本月专注: <span id="month-focus">0</span>h</span>
+            <span>今日专注: <span id="today-focus">0</span>h</span>
+          </div>
+          <canvas id="focus-chart-canvas" width="800" height="120" style="width:100%;height:auto;"></canvas>
         </div>
       </div>
       
@@ -597,7 +620,7 @@
       const yearlyData = {};
       const year = new Date().getFullYear();
       
-      // 获取整年的数据
+      // 获取整年的数据，初始化为0
       for (let month = 0; month < 12; month++) {
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         for (let day = 1; day <= daysInMonth; day++) {
@@ -606,16 +629,63 @@
         }
       }
       
-      // 从任务数据中提取每日专注时间（这里使用模拟数据）
-      // 实际应用中需要从任务记录中提取真实数据
-      for (let dateStr in yearlyData) {
-        // 模拟数据：随机生成一些专注时间
-        if (Math.random() > 0.7) {
-          yearlyData[dateStr] = Math.floor(Math.random() * 3600) + 1800; // 30分钟到2小时
+      // 从任务数据中提取每日专注时间
+      function extractDailyTime(subtasks) {
+        for (let s of subtasks) {
+          if (s.subtasks && s.subtasks.length > 0) {
+            extractDailyTime(s.subtasks);
+          }
+          // 这里暂时使用任务的总用时，实际应该按日期记录
+          if (s.timeSpent > 0) {
+            // 将总用时分配到最近几天（模拟每日数据）
+            const today = new Date();
+            const todayStr = today.toISOString().slice(0, 10);
+            yearlyData[todayStr] = (yearlyData[todayStr] || 0) + s.timeSpent;
+          }
         }
       }
       
+      for (let t of tasks) {
+        extractDailyTime(t.subtasks || []);
+      }
+      
       return yearlyData;
+    }
+    
+    // 计算专注时长统计
+    function getFocusStats() {
+      const yearlyData = getYearlyFocusData();
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0, 10);
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      
+      let totalFocus = 0;
+      let yearFocus = 0;
+      let monthFocus = 0;
+      let todayFocus = 0;
+      
+      for (let dateStr in yearlyData) {
+        const focusTime = yearlyData[dateStr];
+        totalFocus += focusTime;
+        
+        const date = new Date(dateStr);
+        if (date.getFullYear() === year) {
+          yearFocus += focusTime;
+          if (date.getMonth() + 1 === month) {
+            monthFocus += focusTime;
+          }
+        }
+      }
+      
+      todayFocus = yearlyData[todayStr] || 0;
+      
+      return {
+        total: (totalFocus / 3600).toFixed(1),
+        year: (yearFocus / 3600).toFixed(1),
+        month: (monthFocus / 3600).toFixed(1),
+        today: (todayFocus / 3600).toFixed(1)
+      };
     }
     
     // 绘制年度专注时间热力图
@@ -623,8 +693,20 @@
       const canvas = document.getElementById('focus-chart-canvas');
       if (!canvas) return;
       
+      // 设置canvas的实际尺寸以匹配显示尺寸，提高清晰度
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      
       const ctx = canvas.getContext('2d');
       const yearlyData = getYearlyFocusData();
+      const stats = getFocusStats();
+      
+      // 更新统计信息
+      document.getElementById('total-focus').innerText = stats.total;
+      document.getElementById('year-focus').innerText = stats.year;
+      document.getElementById('month-focus').innerText = stats.month;
+      document.getElementById('today-focus').innerText = stats.today;
       
       // 清空画布
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -635,7 +717,7 @@
       const chartHeight = canvas.height - 2 * padding;
       
       // 计算网格
-      const cellSize = 12;
+      const cellSize = 14;
       const gap = 1;
       const cellsPerRow = Math.floor(chartWidth / (cellSize + gap));
       const totalCells = 365;
@@ -687,7 +769,7 @@
       
       // 绘制标题
       ctx.fillStyle = '#333';
-      ctx.font = '14px Arial';
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
       ctx.fillText('年度专注时间热力图（点击方格查看详情）', canvas.width/2, 15);
     }
