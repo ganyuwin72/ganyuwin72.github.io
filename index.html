@@ -364,6 +364,20 @@
       gap: 20px;
       padding: 20px;
     }
+    .subtask-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #4CAF50;
+      font-weight: bold;
+      z-index: 2;
+      background: none;
+      border: none;
+      outline: none;
+    }
+    li.subtask { position: relative; }
   </style>
 </head>
 <body>
@@ -935,9 +949,9 @@
             const li = document.createElement('li');
             li.className = `subtask subtask-level-${level}` + (sub.done ? ' completed' : '');
             li.setAttribute('draggable','true');
-            li.ondragstart = e=>subtaskDragStart(e, subIdx, task.subtasks);
+            li.ondragstart = e=>subtaskDragStart(e, subIdx, subs);
             li.ondragover = e=>subtaskDragOver(e, subIdx);
-            li.ondrop = e=>subtaskDrop(e, subIdx, task.subtasks);
+            li.ondrop = e=>subtaskDrop(e, subIdx, subs);
             li.ondragend = ()=>li.classList.remove('dragging');
             li.ondragenter = e=>e.preventDefault();
             li.ondragleave = e=>e.preventDefault();
@@ -982,9 +996,10 @@
               `:'');
             li.appendChild(controlsDiv);
             ul.appendChild(li);
-            if (sub.subtasks && sub.subtasks.length>0) {
+            if (sub.subtasks && sub.subtasks.length>0 && level < 3) {
               const subUl = document.createElement('ul');
               subUl.className = 'subtasks';
+              if(sub.collapsed) subUl.style.display = 'none';
               renderSubtasks(subUl, sub.subtasks, level+1, parentTaskId);
               ul.appendChild(subUl);
             }
