@@ -156,8 +156,9 @@
     .habit-board {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      gap: 24px;
       justify-content: center;
+      margin-top: 16px;
     }
     .habit-card {
       background: #fff;
@@ -169,9 +170,13 @@
       max-width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
       cursor: grab;
       user-select: none;
+      transition: box-shadow 0.2s ease;
+    }
+    .habit-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .habit-card.dragging {
       opacity: 0.5;
@@ -711,18 +716,14 @@
         // 12个月热力图 - 3行4列布局
         const year = new Date().getFullYear();
         const monthsContainer = document.createElement('div');
-        monthsContainer.style.display = 'grid';
-        monthsContainer.style.gridTemplateColumns = 'repeat(4, 1fr)';
-        monthsContainer.style.gridTemplateRows = 'repeat(3, auto)';
-        monthsContainer.style.gap = '12px';
-        monthsContainer.style.marginTop = '8px';
+        monthsContainer.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;';
         
         for(let month=0;month<12;month++){
           const monthDiv = document.createElement('div');
-          monthDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;';
+          monthDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;width:calc(25% - 6px);min-width:60px;';
           
           const monthTitle = document.createElement('div');
-          monthTitle.style.cssText = 'font-weight:bold;font-size:0.9em;margin-bottom:4px;text-align:center;';
+          monthTitle.style.cssText = 'font-weight:bold;font-size:0.85em;margin-bottom:3px;text-align:center;color:#666;';
           monthTitle.innerText = `${month+1}月`;
           monthDiv.appendChild(monthTitle);
           
@@ -732,19 +733,15 @@
           const firstDay = new Date(year, month, 1).getDay();
           // 生成天格子
           const grid = document.createElement('div');
-          grid.style.display = 'grid';
-          grid.style.gridTemplateColumns = `repeat(${Math.ceil((daysInMonth+((firstDay+6)%7))/7)}, 10px)`;
-          grid.style.gridTemplateRows = 'repeat(7, 10px)';
-          grid.style.gap = '1px';
-          grid.style.marginBottom = '2px';
-          grid.style.position = 'relative';
+          grid.style.cssText = 'display:grid;gap:1px;margin-bottom:2px;';
+          grid.style.gridTemplateColumns = `repeat(${Math.ceil((daysInMonth+((firstDay+6)%7))/7)}, 8px)`;
+          grid.style.gridTemplateRows = 'repeat(7, 8px)';
           
           // 补齐前面的空格
           let emptyDays = (firstDay+6)%7; // 以周一为第一列
           for(let i=0;i<emptyDays;i++){
             const empty = document.createElement('div');
-            empty.style.width = '10px';
-            empty.style.height = '10px';
+            empty.style.cssText = 'width:8px;height:8px;';
             grid.appendChild(empty);
           }
           
@@ -753,8 +750,7 @@
             const dayDiv = document.createElement('div');
             dayDiv.className = 'heatmap-day'+(habit.days[dateStr]?' done':'');
             dayDiv.title = dateStr;
-            dayDiv.style.width = '10px';
-            dayDiv.style.height = '10px';
+            dayDiv.style.cssText = 'width:8px;height:8px;border-radius:1px;cursor:pointer;';
             dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
             grid.appendChild(dayDiv);
           }
