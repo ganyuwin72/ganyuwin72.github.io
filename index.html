@@ -889,9 +889,9 @@
             const li = document.createElement('li');
             li.className = `subtask subtask-level-${level}` + (sub.done ? ' completed' : '');
             li.setAttribute('draggable','true');
-            li.ondragstart = e=>subtaskDragStart(e, subIdx, task.subtasks);
+            li.ondragstart = e=>subtaskDragStart(e, subIdx, subs);
             li.ondragover = e=>subtaskDragOver(e, subIdx);
-            li.ondrop = e=>subtaskDrop(e, subIdx, task.subtasks);
+            li.ondrop = e=>subtaskDrop(e, subIdx, subs);
             li.ondragend = ()=>li.classList.remove('dragging');
             li.ondragenter = e=>e.preventDefault();
             li.ondragleave = e=>e.preventDefault();
@@ -1082,9 +1082,7 @@
       dragInfo = { type: null, from: null, to: null };
     }
     function subtaskDragStart(e, idx, parentSubs) {
-      // 找到当前子任务所属的父任务
-      const taskId = e.currentTarget.closest('.task-card').getAttribute('data-task-id');
-      dragInfo = { type: 'subtask', from: idx, to: null, parent: parentSubs, taskId: taskId };
+      dragInfo = { type: 'subtask', from: idx, to: null, parent: parentSubs };
       e.currentTarget.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/html', e.currentTarget.outerHTML);
@@ -1097,20 +1095,14 @@
     function subtaskDrop(e, idx, parentSubs) {
       e.preventDefault();
       if (dragInfo.type==='subtask' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to && dragInfo.parent===parentSubs) {
-        // 重新获取最新的任务数据
-        const currentTasks = JSON.parse(localStorage.getItem('tasks')||'[]');
-        // 通过任务ID找到父任务
-        const parentTask = currentTasks.find(task => task.id === dragInfo.taskId);
-        if (parentTask && parentTask.subtasks) {
-          const moved = parentTask.subtasks.splice(dragInfo.from,1)[0];
-          parentTask.subtasks.splice(dragInfo.to,0,moved);
-          localStorage.setItem('tasks', JSON.stringify(currentTasks));
-          tasks = currentTasks;
-          renderTasks();
-        }
+        const moved = parentSubs.splice(dragInfo.from,1)[0];
+        parentSubs.splice(dragInfo.to,0,moved);
+        saveTasks();
+        tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+        renderTasks();
       }
       document.querySelectorAll('.subtask').forEach(card=>card.classList.remove('dragging'));
-      dragInfo = { type: null, from: null, to: null, parent: null, taskId: null };
+      dragInfo = { type: null, from: null, to: null, parent: null };
     }
     
     // 习惯卡片拖拽函数
@@ -1128,12 +1120,10 @@
     function habitDrop(e, idx) {
       e.preventDefault();
       if (dragInfo.type==='habit' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to) {
-        // 重新获取最新的习惯数据
-        const currentHabits = JSON.parse(localStorage.getItem('habits')||'[]');
-        const moved = currentHabits.splice(dragInfo.from,1)[0];
-        currentHabits.splice(dragInfo.to,0,moved);
-        localStorage.setItem('habits', JSON.stringify(currentHabits));
-        habits = currentHabits;
+        const moved = habits.splice(dragInfo.from,1)[0];
+        habits.splice(dragInfo.to,0,moved);
+        saveHabits();
+        habits = JSON.parse(localStorage.getItem('habits')||'[]');
         renderHabits();
       }
       document.querySelectorAll('.habit-card').forEach(card=>card.classList.remove('dragging'));
