@@ -141,6 +141,49 @@
     .heatmap-day.done {
       background: #3aafa9;
     }
+    
+    /* 习惯卡片月份网格样式 */
+    .habit-months-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(3, auto);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    
+    .habit-month-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    
+    .habit-month-title {
+      font-weight: bold;
+      font-size: 0.8em;
+      margin-bottom: 4px;
+      text-align: center;
+      color: #555;
+    }
+    
+    .habit-calendar-grid {
+      display: grid;
+      gap: 1px;
+      width: 100%;
+      max-width: 120px;
+    }
+    
+    .habit-day-cell {
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .habit-day-cell:hover {
+      transform: scale(1.2);
+    }
     .heatmap-labels {
       display: flex;
       justify-content: space-between;
@@ -715,47 +758,52 @@
         card.appendChild(statDiv);
         // 12个月热力图 - 3行4列布局
         const year = new Date().getFullYear();
-        const monthsContainer = document.createElement('div');
-        monthsContainer.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;';
         
+        // 创建3行4列的容器
+        const monthsContainer = document.createElement('div');
+        monthsContainer.className = 'habit-months-grid';
+        
+        // 创建12个月份
         for(let month=0;month<12;month++){
           const monthDiv = document.createElement('div');
-          monthDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;width:calc(25% - 6px);min-width:60px;';
+          monthDiv.className = 'habit-month-item';
           
+          // 月份标题
           const monthTitle = document.createElement('div');
-          monthTitle.style.cssText = 'font-weight:bold;font-size:0.85em;margin-bottom:3px;text-align:center;color:#666;';
+          monthTitle.className = 'habit-month-title';
           monthTitle.innerText = `${month+1}月`;
           monthDiv.appendChild(monthTitle);
           
-          // 该月天数
+          // 创建该月的日历网格
           const daysInMonth = new Date(year, month+1, 0).getDate();
-          // 该月第一天是周几
           const firstDay = new Date(year, month, 1).getDay();
-          // 生成天格子
-          const grid = document.createElement('div');
-          grid.style.cssText = 'display:grid;gap:1px;margin-bottom:2px;';
-          grid.style.gridTemplateColumns = `repeat(${Math.ceil((daysInMonth+((firstDay+6)%7))/7)}, 8px)`;
-          grid.style.gridTemplateRows = 'repeat(7, 8px)';
+          const weeksNeeded = Math.ceil((daysInMonth + ((firstDay + 6) % 7)) / 7);
           
-          // 补齐前面的空格
-          let emptyDays = (firstDay+6)%7; // 以周一为第一列
+          const calendarGrid = document.createElement('div');
+          calendarGrid.className = 'habit-calendar-grid';
+          calendarGrid.style.gridTemplateColumns = `repeat(${weeksNeeded}, 1fr)`;
+          calendarGrid.style.gridTemplateRows = 'repeat(7, 1fr)';
+          
+          // 填充空白格子
+          const emptyDays = (firstDay + 6) % 7;
           for(let i=0;i<emptyDays;i++){
-            const empty = document.createElement('div');
-            empty.style.cssText = 'width:8px;height:8px;';
-            grid.appendChild(empty);
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'habit-day-cell';
+            emptyDay.style.background = 'transparent';
+            calendarGrid.appendChild(emptyDay);
           }
           
-          for(let d=1;d<=daysInMonth;d++){
-            const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-            const dayDiv = document.createElement('div');
-            dayDiv.className = 'heatmap-day'+(habit.days[dateStr]?' done':'');
-            dayDiv.title = dateStr;
-            dayDiv.style.cssText = 'width:8px;height:8px;border-radius:1px;cursor:pointer;';
-            dayDiv.onclick = ()=>toggleHabitDone(habit.id, dateStr);
-            grid.appendChild(dayDiv);
+          // 填充实际日期
+          for(let day=1;day<=daysInMonth;day++){
+            const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`;
+            const dayCell = document.createElement('div');
+            dayCell.className = 'heatmap-day habit-day-cell'+(habit.days[dateStr]?' done':'');
+            dayCell.title = dateStr;
+            dayCell.onclick = ()=>toggleHabitDone(habit.id, dateStr);
+            calendarGrid.appendChild(dayCell);
           }
           
-          monthDiv.appendChild(grid);
+          monthDiv.appendChild(calendarGrid);
           monthsContainer.appendChild(monthDiv);
         }
         
