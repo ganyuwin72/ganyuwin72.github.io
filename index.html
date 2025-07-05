@@ -356,6 +356,15 @@
     <div class="container">
       <h1>任务管理与计时统计</h1>
       <div id="total-time" style="font-size:1.1em;color:#1976d2;margin-bottom:16px;font-weight:700;"></div>
+      
+      <!-- 每日专注时间统计 -->
+      <div id="daily-focus-stats" style="margin-bottom:24px;">
+        <h3 style="color:#333;margin-bottom:12px;">每日专注时间统计</h3>
+        <div id="focus-chart" style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+          <canvas id="focus-chart-canvas" width="800" height="200"></canvas>
+        </div>
+      </div>
+      
       <button class="btn add-task-btn" onclick="showTaskForm()">+ 新建任务</button>
       <div id="task-board" class="task-board"></div>
       <h2 style="margin-top:40px;">每日习惯</h2>
@@ -484,6 +493,9 @@
     function addSubtask(taskId, parentId, level) {
       const name = prompt('子任务名称：');
       if (!name) return;
+      const estimate = prompt('预计用时（小时）：');
+      const estimateHours = estimate ? parseFloat(estimate) : 0;
+      
       let task = tasks.find(t=>t.id===taskId);
       let parent = task;
       if (parentId) {
@@ -503,6 +515,7 @@
       parent.subtasks.push({
         id: 'sub_'+Date.now()+Math.random(),
         name,
+        estimate: estimateHours,
         subtasks: [],
         timeSpent: 0,
         running: false,
@@ -578,6 +591,95 @@
       }
       return total;
     }
+    
+    // 获取每日专注时间数据
+    function getDailyFocusData() {
+      const dailyData = {};
+      const today = new Date();
+      
+      // 获取最近30天的数据
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().slice(0, 10);
+        dailyData[dateStr] = 0;
+      }
+      
+      // 从任务数据中提取每日专注时间
+      function extractDailyTime(subtasks, dateStr) {
+        for (let s of subtasks) {
+          if (s.subtasks && s.subtasks.length > 0) {
+            extractDailyTime(s.subtasks, dateStr);
+          }
+          // 这里需要从任务数据中提取每日时间，暂时使用模拟数据
+          if (s.timeSpent > 0) {
+            dailyData[dateStr] += s.timeSpent;
+          }
+        }
+      }
+      
+      for (let t of tasks) {
+        extractDailyTime(t.subtasks || [], getTodayStr());
+      }
+      
+      return dailyData;
+    }
+    
+    // 绘制专注时间图表
+    function renderFocusChart() {
+      const canvas = document.getElementById('focus-chart-canvas');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      const dailyData = getDailyFocusData();
+      const dates = Object.keys(dailyData);
+      const values = Object.values(dailyData);
+      
+      // 清空画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // 设置样式
+      const padding = 40;
+      const chartWidth = canvas.width - 2 * padding;
+      const chartHeight = canvas.height - 2 * padding;
+      
+      // 绘制坐标轴
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, padding);
+      ctx.lineTo(padding, canvas.height - padding);
+      ctx.lineTo(canvas.width - padding, canvas.height - padding);
+      ctx.stroke();
+      
+      // 绘制数据点
+      const maxValue = Math.max(...values, 1);
+      const barWidth = chartWidth / dates.length;
+      
+      ctx.fillStyle = '#4ecca3';
+      for (let i = 0; i < dates.length; i++) {
+        const barHeight = (values[i] / maxValue) * chartHeight;
+        const x = padding + i * barWidth;
+        const y = canvas.height - padding - barHeight;
+        
+        ctx.fillRect(x, y, barWidth - 2, barHeight);
+        
+        // 绘制日期标签
+        if (i % 5 === 0) {
+          ctx.fillStyle = '#666';
+          ctx.font = '10px Arial';
+          ctx.textAlign = 'center';
+          const dateLabel = dates[i].slice(5); // 只显示月-日
+          ctx.fillText(dateLabel, x + barWidth/2, canvas.height - padding + 15);
+        }
+      }
+      
+      // 绘制标题
+      ctx.fillStyle = '#333';
+      ctx.font = '14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('每日专注时间（秒）', canvas.width/2, 20);
+    }
     function editTaskTitle(taskId) {
       let task = tasks.find(t=>t.id===taskId);
       let newTitle = prompt('修改任务名称：', task.title);
@@ -648,8 +750,22 @@
         editBtn.onclick = ()=>editTaskTitle(task.id);
         titleDiv.appendChild(editBtn);
         card.appendChild(titleDiv);
+        // 计算子任务预计用时总和
+        function getSubtaskEstimateTotal(subtasks) {
+          let total = 0;
+          for (let s of subtasks) {
+            total += s.estimate || 0;
+            if (s.subtasks && s.subtasks.length > 0) {
+              total += getSubtaskEstimateTotal(s.subtasks);
+            }
+          }
+          return total;
+        }
+        const subtaskEstimateTotal = getSubtaskEstimateTotal(task.subtasks);
+        const totalEstimate = (task.estimate || 0) + subtaskEstimateTotal;
+        
         card.innerHTML += `
-          <div class="task-meta">预计用时: ${task.estimate||'-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
+          <div class="task-meta">预计用时: ${totalEstimate > 0 ? totalEstimate.toFixed(1) : '-'} 小时 | 已用: ${formatTime(totalTimeSpent)}</div>
           <div class="progress-bar"><div class="progress-bar-inner" style="width:${percent}%;"></div></div>
           <div style="font-size:0.95em;">完成度: ${percent}%</div>
           <ul class="subtasks"></ul>
@@ -681,7 +797,8 @@
             if(leaf) {
               const timeSpan = document.createElement('span');
               timeSpan.style.cssText = 'color:#888;font-size:0.9em;';
-              timeSpan.innerText = ` | 已用: ${formatTime(subTotalTime)}`;
+              const estimateText = sub.estimate ? ` | 预计: ${sub.estimate}h` : '';
+              timeSpan.innerText = ` | 已用: ${formatTime(subTotalTime)}${estimateText}`;
               li.appendChild(timeSpan);
             }
             const controlsDiv = document.createElement('div');
@@ -708,6 +825,7 @@
         board.appendChild(card);
       });
       ensureTimerRender();
+      renderFocusChart();
     }
     function renderHabits() {
       habits = JSON.parse(localStorage.getItem('habits')||'[]');
@@ -997,6 +1115,7 @@
         habits = JSON.parse(localStorage.getItem('habits')||'[]');
         renderTasks();
         renderHabits();
+        renderFocusChart();
       } else {
         showPasswordModal();
       }
