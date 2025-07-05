@@ -841,10 +841,13 @@
         const card = document.createElement('div');
         card.className = 'task-card' + (percent===100 ? ' completed' : '');
         card.setAttribute('draggable','true');
+        card.setAttribute('data-task-id', task.id);
         card.ondragstart = e=>taskDragStart(e, idx);
         card.ondragover = e=>taskDragOver(e, idx);
         card.ondrop = e=>taskDrop(e, idx);
         card.ondragend = ()=>card.classList.remove('dragging');
+        card.ondragenter = e=>e.preventDefault();
+        card.ondragleave = e=>e.preventDefault();
         const titleDiv = document.createElement('div');
         titleDiv.className = 'task-title';
         if(percent===100) titleDiv.style.color = '#D3D3D3';
@@ -886,10 +889,12 @@
             const li = document.createElement('li');
             li.className = `subtask subtask-level-${level}` + (sub.done ? ' completed' : '');
             li.setAttribute('draggable','true');
-            li.ondragstart = e=>subtaskDragStart(e, subIdx, subs);
+            li.ondragstart = e=>subtaskDragStart(e, subIdx, task.subtasks);
             li.ondragover = e=>subtaskDragOver(e, subIdx);
-            li.ondrop = e=>subtaskDrop(e, subIdx, subs);
+            li.ondrop = e=>subtaskDrop(e, subIdx, task.subtasks);
             li.ondragend = ()=>li.classList.remove('dragging');
+            li.ondragenter = e=>e.preventDefault();
+            li.ondragleave = e=>e.preventDefault();
             let leaf = (!sub.subtasks || sub.subtasks.length===0);
             let subTotalTime = getTotalTimeSpent(sub.subtasks||[])+(sub.timeSpent||0);
             const nameSpan = document.createElement('span');
@@ -950,6 +955,8 @@
         card.ondragover = e=>habitDragOver(e, idx);
         card.ondrop = e=>habitDrop(e, idx);
         card.ondragend = ()=>card.classList.remove('dragging');
+        card.ondragenter = e=>e.preventDefault();
+        card.ondragleave = e=>e.preventDefault();
         const labelDiv = document.createElement('div');
         labelDiv.className = 'habit-label';
         labelDiv.innerText = habit.title;
@@ -1052,42 +1059,85 @@
     function taskDragStart(e, idx) {
       dragInfo = { type: 'task', from: idx, to: null };
       e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', e.currentTarget.outerHTML);
     }
     function taskDragOver(e, idx) {
       e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
       dragInfo.to = idx;
     }
     function taskDrop(e, idx) {
       e.preventDefault();
       if (dragInfo.type==='task' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to) {
-        const moved = tasks.splice(dragInfo.from,1)[0];
-        tasks.splice(dragInfo.to,0,moved);
-        saveTasks();
-        tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+        // 重新获取最新的任务数据
+        const currentTasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+        const moved = currentTasks.splice(dragInfo.from,1)[0];
+        currentTasks.splice(dragInfo.to,0,moved);
+        localStorage.setItem('tasks', JSON.stringify(currentTasks));
+        tasks = currentTasks;
         renderTasks();
       }
       document.querySelectorAll('.task-card').forEach(card=>card.classList.remove('dragging'));
       dragInfo = { type: null, from: null, to: null };
     }
     function subtaskDragStart(e, idx, parentSubs) {
-      dragInfo = { type: 'subtask', from: idx, to: null, parent: parentSubs };
+      // 找到当前子任务所属的父任务
+      const taskId = e.currentTarget.closest('.task-card').getAttribute('data-task-id');
+      dragInfo = { type: 'subtask', from: idx, to: null, parent: parentSubs, taskId: taskId };
       e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', e.currentTarget.outerHTML);
     }
     function subtaskDragOver(e, idx) {
       e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
       dragInfo.to = idx;
     }
     function subtaskDrop(e, idx, parentSubs) {
       e.preventDefault();
       if (dragInfo.type==='subtask' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to && dragInfo.parent===parentSubs) {
-        const moved = parentSubs.splice(dragInfo.from,1)[0];
-        parentSubs.splice(dragInfo.to,0,moved);
-        saveTasks();
-        tasks = JSON.parse(localStorage.getItem('tasks')||'[]');
-        renderTasks();
+        // 重新获取最新的任务数据
+        const currentTasks = JSON.parse(localStorage.getItem('tasks')||'[]');
+        // 通过任务ID找到父任务
+        const parentTask = currentTasks.find(task => task.id === dragInfo.taskId);
+        if (parentTask && parentTask.subtasks) {
+          const moved = parentTask.subtasks.splice(dragInfo.from,1)[0];
+          parentTask.subtasks.splice(dragInfo.to,0,moved);
+          localStorage.setItem('tasks', JSON.stringify(currentTasks));
+          tasks = currentTasks;
+          renderTasks();
+        }
       }
       document.querySelectorAll('.subtask').forEach(card=>card.classList.remove('dragging'));
-      dragInfo = { type: null, from: null, to: null, parent: null };
+      dragInfo = { type: null, from: null, to: null, parent: null, taskId: null };
+    }
+    
+    // 习惯卡片拖拽函数
+    function habitDragStart(e, idx) {
+      dragInfo = { type: 'habit', from: idx, to: null };
+      e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', e.currentTarget.outerHTML);
+    }
+    function habitDragOver(e, idx) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      dragInfo.to = idx;
+    }
+    function habitDrop(e, idx) {
+      e.preventDefault();
+      if (dragInfo.type==='habit' && dragInfo.from!==null && dragInfo.to!==null && dragInfo.from!==dragInfo.to) {
+        // 重新获取最新的习惯数据
+        const currentHabits = JSON.parse(localStorage.getItem('habits')||'[]');
+        const moved = currentHabits.splice(dragInfo.from,1)[0];
+        currentHabits.splice(dragInfo.to,0,moved);
+        localStorage.setItem('habits', JSON.stringify(currentHabits));
+        habits = currentHabits;
+        renderHabits();
+      }
+      document.querySelectorAll('.habit-card').forEach(card=>card.classList.remove('dragging'));
+      dragInfo = { type: null, from: null, to: null };
     }
     function ensureTimerRender() {
       if (timerRenderInterval) clearInterval(timerRenderInterval);
